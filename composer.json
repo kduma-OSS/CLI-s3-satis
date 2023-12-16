@@ -24,24 +24,15 @@
         "olvlvl/composer-attribute-collector": "^2.0.1"
     },
     "require-dev": {
-        "laravel/pint": "^1.13.7",
-        "mockery/mockery": "^1.6.7",
-        "pestphp/pest": "^2.28.1"
+        "laravel/pint": "^1.13.7"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/",
-            "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "App\\": "app/"
         },
         "files": [
             "vendor/attributes.php"
         ]
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/"
-        }
     },
     "config": {
         "preferred-install": "dist",
