@@ -17,6 +17,7 @@
     "s3-satis": {
         "plugins": {
             "file-restrictions-map-generator": true,
+            "strip-sources-links": false,
             "skip-step-after-hook": {
                 "enabled": false,
                 "skip": [
