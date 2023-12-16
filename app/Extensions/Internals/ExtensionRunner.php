@@ -17,6 +17,13 @@ class ExtensionRunner
         'satis-purge',
     ];
     private array $initialized_extensions = [];
+    private Collection $extensions_configurations;
+
+    public function __construct()
+    {
+        $this->extensions_configurations = collect();
+    }
+
 
     public function enableExtension(string $extension): void
     {
@@ -53,6 +60,10 @@ class ExtensionRunner
                 } else {
                     $command->error("Invalid configuration for plugin - s3-satis.plugins.{$extension} = \"{$configuration}\" is not a boolean.");
                 }
+
+                if($configuration instanceof Collection) {
+                    $this->extensions_configurations[$extension] = new PluginConfig($configuration->except('enabled'));
+                }
             });
     }
 
@@ -62,21 +73,31 @@ class ExtensionRunner
 
         $command->line("Running {$hook->name} plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
 
+        app()->scoped(BuildStateInterface::class, BuildState::class);
+        app()->scoped(BuildState::class, fn() => $buildState);
+        app()->scoped(BuildHooks::class, fn() => $hook);
+        app()->scoped(Command::class, fn() => $command);
+        app()->scoped(ExtensionRunner::class, fn() => $this);
+
         $extensions = $this->getExtensions();
         $extensions = collect($this->enabled_extensions)
             ->map(fn(string $key): ExtensionDescriptor => $extensions->get($key))
             ->filter(fn(ExtensionDescriptor $descriptor): bool => $descriptor->hooks->has($hook->name))
             ->each(function (ExtensionDescriptor $descriptor) {
-                if(isset($this->initialized_extensions[$descriptor->class_name])) {
-                    return;
-                }
-
-                $this->initialized_extensions[$descriptor->class_name] = app($descriptor->class_name);
+                app()->scoped(PluginConfig::class, fn() => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
+                $this->instantiateExtension($descriptor);
             })
             ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook, $buildState) {
+                app()->scoped(ExtensionDescriptor::class, fn() => $descriptor);
+                app()->scoped(PluginConfig::class, fn() => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
+
                 $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, $buildState, &$skip_flag) {
                     $command->line("Running {$descriptor->key}::{$hook->method_name}() plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
-                    if(false === $this->initialized_extensions[$descriptor->class_name]->{$hook->method_name}($buildState)) {
+
+                    app()->scoped(HookDescriptor::class, fn() => $hook);
+                    $result = app()->call([$this->initialized_extensions[$descriptor->class_name], $hook->method_name]);
+
+                    if(false === $result) {
                         $command->line("{$descriptor->key}::{$hook->method_name}() plugin hook set a skip flag.", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                         $skip_flag = true;
                     }
@@ -85,6 +106,8 @@ class ExtensionRunner
             });
 
         $command->line("Finished running {$hook->name} plugin hook.", verbosity: OutputInterface::VERBOSITY_DEBUG);
+
+        app()->forgetScopedInstances();
 
         return !$skip_flag;
     }
@@ -118,5 +141,14 @@ class ExtensionRunner
             })
             ->flatten(1)
             ->groupBy(fn(HookDescriptor $hook): string => $hook->hook->name);
+    }
+
+    protected function instantiateExtension(ExtensionDescriptor $descriptor): object
+    {
+        if (!isset($this->initialized_extensions[$descriptor->class_name])) {
+            $this->initialized_extensions[$descriptor->class_name] = app($descriptor->class_name);
+        }
+
+        return $this->initialized_extensions[$descriptor->class_name];
     }
 }
