@@ -16,12 +16,16 @@ WORKDIR /usr/src/satis
 
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-RUN composer install --no-interaction --no-progress --no-scripts --optimize-autoloader --ignore-platform-req=ext-sockets
+RUN docker-php-ext-install zip
+RUN composer install --no-interaction --no-progress --no-scripts --optimize-autoloader
+#    --ignore-platform-req=ext-zip
 
 RUN ./s3-satis app:build --build-version=${BUILD_VERSION} --ansi -vvv
 
 
 FROM --platform=$BUILDPLATFORM php:8.2-cli AS runtime
+
+RUN docker-php-ext-install zip
 
 COPY --from=builder /usr/src/satis/builds/s3-satis /usr/src/satis/s3-satis
 WORKDIR /usr/src/satis
