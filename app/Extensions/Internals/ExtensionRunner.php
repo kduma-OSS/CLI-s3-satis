@@ -31,6 +31,10 @@ class ExtensionRunner
             throw new InvalidArgumentException("Extension $extension does not exist.");
         }
 
+        if (in_array($extension, $this->enabled_extensions, true)) {
+            return;
+        }
+
         $this->enabled_extensions[] = $extension;
     }
 
