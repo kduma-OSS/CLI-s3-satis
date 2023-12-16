@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use LaravelZero\Framework\Commands\Command;
 use olvlvl\ComposerAttributeCollector\Attributes;
 use olvlvl\ComposerAttributeCollector\TargetClass;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class ExtensionRunner
 {
@@ -31,7 +32,7 @@ class ExtensionRunner
     {
         $skip_flag = false;
 
-        $command->line("Running {$hook->name} plugin hook...");
+        $command->line("Running {$hook->name} plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
 
         $extensions = $this->getExtensions();
         $extensions = collect($this->enabled_extensions)
@@ -46,16 +47,16 @@ class ExtensionRunner
             })
             ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook, $buildState) {
                 $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, $buildState, &$skip_flag) {
-                    $command->line("Running {$descriptor->key}::{$hook->method_name}() plugin hook...");
+                    $command->line("Running {$descriptor->key}::{$hook->method_name}() plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
                     if(false === $this->initialized_extensions[$descriptor->class_name]->{$hook->method_name}($buildState)) {
-                        $command->line("{$descriptor->key}::{$hook->method_name}() plugin hook set a skip flag.");
+                        $command->line("{$descriptor->key}::{$hook->method_name}() plugin hook set a skip flag.", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                         $skip_flag = true;
                     }
-                    $command->line("Finished running {$descriptor->key}::{$hook->method_name}() plugin hook.");
+                    $command->line("Finished running {$descriptor->key}::{$hook->method_name}() plugin hook.", verbosity: OutputInterface::VERBOSITY_DEBUG);
                 });
             });
 
-        $command->line("Finished running {$hook->name} plugin hook.");
+        $command->line("Finished running {$hook->name} plugin hook.", verbosity: OutputInterface::VERBOSITY_DEBUG);
 
         return !$skip_flag;
     }

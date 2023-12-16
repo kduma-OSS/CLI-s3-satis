@@ -13,6 +13,7 @@ use Illuminate\Support\Stringable;
 use LaravelZero\Framework\Commands\Command;
 
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class BuildCommand extends Command
 {
@@ -170,10 +171,10 @@ class BuildCommand extends Command
                 if ($s3_path->afterLast('.') == 'tar' || $s3_path->afterLast('.') == 'zip') {
                     $placeholders->push($temp_path->toString());
 
-                    $this->line("Creating placeholder {$s3_path} in temp directory");
+                    $this->line("Creating placeholder {$s3_path} in temp directory", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     Storage::disk('temp')->put($temp_path, '');
                 } else {
-                    $this->line("Downloading {$s3_path} from S3");
+                    $this->line("Downloading {$s3_path} from S3", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     Storage::disk('temp')->writeStream($temp_path, Storage::disk('s3')->readStream($s3_path));
                 }
             });
@@ -228,7 +229,7 @@ class BuildCommand extends Command
             ->map(fn($file) => str($file))
             ->diff($all_local_files)
             ->each(function (Stringable $s3_path) {
-                $this->line("Deleting {$s3_path} because it is missing");
+                $this->line("Deleting {$s3_path} because it is missing", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                 Storage::disk('s3')->delete($s3_path);
             });
     }
@@ -247,17 +248,17 @@ class BuildCommand extends Command
                     $s3_path = $temp_path->after($prefix)->ltrim('/');
 
                     if (Storage::disk('temp')->size($temp_path) > 0) {
-                        $this->line("Uploading {$s3_path} to S3");
+                        $this->line("Uploading {$s3_path} to S3", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                         Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
                     } else {
-                        $this->line("Skipping {$s3_path} because it is a placeholder");
+                        $this->line("Skipping {$s3_path} because it is a placeholder", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     }
                 });
 
                 $normal_files->each(function (Stringable $temp_path) use ($prefix) {
                     $s3_path = $temp_path->after($prefix)->ltrim('/');
 
-                    $this->line("Uploading {$s3_path} to S3");
+                    $this->line("Uploading {$s3_path} to S3", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
                 });
             });
