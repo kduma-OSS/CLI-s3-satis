@@ -1,16 +1,8 @@
 <?php
 
-namespace App\Extensions;
+namespace App\Extensions\Internals;
 
-use App\Extensions\Internals\BuildExtension;
-use App\Extensions\Internals\BuildHook;
-use App\Extensions\Internals\BuildHooks;
-use App\Extensions\Internals\BuildState;
-use App\Extensions\Internals\BuildStateInterface;
-use Composer\Satis\Console\Application;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\Console\Input\ArrayInput;
 
 #[BuildExtension(name: 'Prepare Config For Satis Extension', key: 'prepare-config-for-satis')]
 class PrepareConfigForSatisExtension
