@@ -99,21 +99,6 @@ class BuildCommand extends Command
 
 
 
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_PREPARE_CONFIG_FOR_SATIS, $buildConfig)) {
-            $this->info("Preparing config for satis");
-            $buildConfig->setConfigFilePath(
-                $this->prepareConfigForSatis(
-                    prefix: $buildConfig->getTempPrefix(),
-                    config: $buildConfig->getConfig(),
-                )
-            );
-        } else {
-            $this->info("Skipping preparing config for satis");
-        }
-        $extensionRunner->execute($this, BuildHooks::AFTER_PREPARE_CONFIG_FOR_SATIS, $buildConfig);
-
-
-
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig)) {
             $this->info("Building satis repository");
             $this->buildSatisRepository(
@@ -125,17 +110,6 @@ class BuildCommand extends Command
             $this->info("Skipping building satis repository");
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CLEAR_SATIS_CONFIG_FILE, $buildConfig)) {
-            $this->info("Clearing satis config file");
-            $this->clearSatisConfigFile(
-                prefix: $buildConfig->getTempPrefix(),
-            );
-        } else {
-            $this->info("Skipping clearing satis config file");
-        }
-        $extensionRunner->execute($this, BuildHooks::AFTER_CLEAR_SATIS_CONFIG_FILE, $buildConfig);
 
 
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig)) {
@@ -224,22 +198,6 @@ class BuildCommand extends Command
     }
 
     /**
-     * Prepare the config for satis
-     */
-    protected function prepareConfigForSatis(string $prefix, Collection $config): string
-    {
-        $config = $config->except('s3-satis');
-
-        $json = json_encode($config->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-        $path = str($prefix)->append('/')->append('satis.json');
-
-        Storage::disk('temp')->put($path, $json);
-
-        return config('filesystems.disks.temp.root')->append($path);
-    }
-
-    /**
      * Generate satis repository
      */
     protected function buildSatisRepository(string $config_file, string $prefix, array $repository_url = null): void
@@ -256,16 +214,6 @@ class BuildCommand extends Command
                 ] + ($repository_url ? ['--repository-url' => $repository_url] : [])
             )
         );
-    }
-
-    /**
-     * Clear the satis config file
-     */
-    protected function clearSatisConfigFile(string $prefix)
-    {
-        $path = str('satis.json')->start('/')->start($prefix);
-
-        Storage::disk('temp')->delete($path);
     }
 
     /**

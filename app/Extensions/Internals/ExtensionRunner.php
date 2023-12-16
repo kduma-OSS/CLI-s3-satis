@@ -13,6 +13,7 @@ class ExtensionRunner
 {
     private ?Collection $extensions = null;
     private array $enabled_extensions = [
+        'prepare-config-for-satis',
         'satis-purge',
     ];
     private array $initialized_extensions = [];
@@ -66,7 +67,7 @@ class ExtensionRunner
             ->map(fn(string $key): ExtensionDescriptor => $extensions->get($key))
             ->filter(fn(ExtensionDescriptor $descriptor): bool => $descriptor->hooks->has($hook->name))
             ->each(function (ExtensionDescriptor $descriptor) {
-                if(in_array($descriptor->class_name, $this->initialized_extensions)) {
+                if(isset($this->initialized_extensions[$descriptor->class_name])) {
                     return;
                 }
 
