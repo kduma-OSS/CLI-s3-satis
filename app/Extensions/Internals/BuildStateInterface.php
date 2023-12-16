@@ -38,4 +38,6 @@ interface BuildStateInterface
 
 
     public function isLastStepSkipped(): bool;
+
+    public function getConfig(): Collection;
 }

@@ -12,26 +12,22 @@ use Illuminate\Support\Facades\Storage;
 #[BuildExtension(name: 'File Restrictions Map File Generator')]
 class FileRestrictionsMapFileGeneratorExtension
 {
-    #[BuildHook(BuildHooks::AFTER_PURGE_SATIS_REPOSITORY)]
-    public function hook(BuildStateInterface $buildState): void
-    {
-        $this->prepareFileRestrictionsMapFile($buildState->getConfigFilePath(), $buildState->getTempPrefix());
-    }
-
     /**
      * Prepare file restrictions map file
      */
-    public function prepareFileRestrictionsMapFile(mixed $config_file, int $temp_subdirectory): void
+    #[BuildHook(BuildHooks::AFTER_PURGE_SATIS_REPOSITORY)]
+    public function hook(BuildStateInterface $buildState): void
     {
-        $homepage = json_decode(file_get_contents($config_file), true)['homepage'];
-        $packages = json_decode(Storage::disk('temp')->get(str('packages.json')->start('/')->start($temp_subdirectory)), true);
+        $homepage = $buildState->getConfig()->get('homepage');
+
+        $packages = json_decode(Storage::disk('temp')->get(str('packages.json')->start('/')->start($buildState->getTempPrefix())), true);
         $packages = collect($packages['available-packages'])
             ->map(fn($package) => [
                 str($packages['metadata-url'])->replace('%package%', $package),
                 str($packages['metadata-url'])->replace('%package%', $package . '~dev'),
             ])
             ->flatten()
-            ->map(fn($path) => json_decode(Storage::disk('temp')->get($path->start('/')->start($temp_subdirectory)), true))
+            ->map(fn($path) => json_decode(Storage::disk('temp')->get($path->start('/')->start($buildState->getTempPrefix())), true))
             ->pluck('packages')
             ->map(function ($packages) {
                 return collect($packages)
@@ -67,6 +63,7 @@ class FileRestrictionsMapFileGeneratorExtension
             ->map(function (Collection $packages) {
                 return $packages->pluck('tags')->flatten();
             });
-        Storage::disk('temp')->put(str('file_restrictions.json')->start('/')->start($temp_subdirectory), json_encode($packages->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        
+        Storage::disk('temp')->put(str('file_restrictions.json')->start('/')->start($buildState->getTempPrefix()), json_encode($packages->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 }

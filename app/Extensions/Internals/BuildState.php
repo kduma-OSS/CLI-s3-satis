@@ -8,6 +8,7 @@ class BuildState implements BuildStateInterface
 {
     protected Collection $placeholders;
     public bool $last_step_executed = false;
+    protected Collection $config;
 
     public function __construct(
         protected string $temp_prefix,
@@ -16,6 +17,8 @@ class BuildState implements BuildStateInterface
         protected bool $force_fresh_downloads = false,
     ) {
         $this->placeholders = collect();
+
+        $this->config = collect(json_decode(file_get_contents($config_file_path), true))->recursive();
     }
 
     public function getTempPrefix(): string
@@ -84,5 +87,10 @@ class BuildState implements BuildStateInterface
     public function isLastStepSkipped(): bool
     {
         return !$this->last_step_executed;
+    }
+
+    public function getConfig(): Collection
+    {
+        return $this->config;
     }
 }
