@@ -23,7 +23,7 @@
                 ]
             },
             "pause-at-hook": {
-                "enabled": true,
+                "enabled": false,
                 "pause": [
                     "BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY",
                     "AFTER_INITIAL_CLEAR_TEMP_DIRECTORY",
