@@ -5,3 +5,4 @@
 .phpunit.result.cache
 .env
 .DS_Store
+/builds
