@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 class BuildState implements BuildStateInterface
 {
     protected Collection $placeholders;
+    public bool $last_step_executed = false;
 
     public function __construct(
         protected string $temp_prefix,
@@ -78,5 +79,10 @@ class BuildState implements BuildStateInterface
     {
         $this->force_fresh_downloads = $force_fresh_downloads;
         return $this;
+    }
+
+    public function isLastStepSkipped(): bool
+    {
+        return !$this->last_step_executed;
     }
 }

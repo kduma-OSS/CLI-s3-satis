@@ -27,8 +27,12 @@ class ExtensionRunner
         $this->enabled_extensions = array_filter($this->enabled_extensions, fn(string $enabled): bool => $enabled !== $extension);
     }
 
-    public function execute(Command $command, BuildHooks $hook, BuildStateInterface $buildState): void
+    public function execute(Command $command, BuildHooks $hook, BuildStateInterface $buildState): bool
     {
+        $skip_flag = false;
+
+        $command->line("Running {$hook->name} plugin hook...");
+
         $extensions = $this->getExtensions();
         $extensions = collect($this->enabled_extensions)
             ->map(fn(string $key): ExtensionDescriptor => $extensions->get($key))
@@ -40,13 +44,20 @@ class ExtensionRunner
 
                 $this->initialized_extensions[$descriptor->class_name] = app($descriptor->class_name);
             })
-            ->map(function (ExtensionDescriptor $descriptor) use ($command, $hook, $buildState) {
-                $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, $buildState) {
-                    $command->info("Running {$descriptor->key}::{$hook->method_name}() plugin hook...");
-                    $this->initialized_extensions[$descriptor->class_name]->{$hook->method_name}($buildState);
-                    $command->info("Finished running {$descriptor->key}::{$hook->method_name}() plugin hook.");
+            ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook, $buildState) {
+                $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, $buildState, &$skip_flag) {
+                    $command->line("Running {$descriptor->key}::{$hook->method_name}() plugin hook...");
+                    if(false === $this->initialized_extensions[$descriptor->class_name]->{$hook->method_name}($buildState)) {
+                        $command->line("{$descriptor->key}::{$hook->method_name}() plugin hook set a skip flag.");
+                        $skip_flag = true;
+                    }
+                    $command->line("Finished running {$descriptor->key}::{$hook->method_name}() plugin hook.");
                 });
             });
+
+        $command->line("Finished running {$hook->name} plugin hook.");
+
+        return !$skip_flag;
     }
 
     private function getExtensions(): Collection

@@ -55,58 +55,88 @@ class BuildCommand extends Command
         );
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
-        $this->clearTempDirectory(
-            prefix: $buildConfig->getTempPrefix()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info("Clearing temp directory");
+            $this->clearTempDirectory(
+                prefix: $buildConfig->getTempPrefix()
+            );
+        } else {
+            $this->info("Skipping clearing temp directory");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig);
-        if(!$buildConfig->isForceFreshDownloads()) {
-            $buildConfig->setPlaceholders(
-                placeholders: $this->downloadFromS3(prefix: $buildConfig->getTempPrefix())
-            );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig)) {
+            if (!$buildConfig->isForceFreshDownloads()) {
+                $this->info("Downloading from S3");
+                $buildConfig->setPlaceholders(
+                    placeholders: $this->downloadFromS3(prefix: $buildConfig->getTempPrefix())
+                );
+            } else {
+                $this->info("Skipping downloading from S3 because --fresh was passed");
+            }
+        } else {
+            $this->info("Skipping downloading from S3");
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_DOWNLOAD_FROM_S3, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig);
-        $this->buildSatisRepository(
-            config_file: $buildConfig->getConfigFilePath(),
-            prefix: $buildConfig->getTempPrefix(),
-            repository_url: $buildConfig->getRepositoryUrls()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig)) {
+            $this->info("Building satis repository");
+            $this->buildSatisRepository(
+                config_file: $buildConfig->getConfigFilePath(),
+                prefix: $buildConfig->getTempPrefix(),
+                repository_url: $buildConfig->getRepositoryUrls()
+            );
+        } else {
+            $this->info("Skipping building satis repository");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_PURGE_SATIS_REPOSITORY, $buildConfig);
-        $this->purgeSatisRepository(
-            config_file: $buildConfig->getConfigFilePath(),
-            prefix: $buildConfig->getTempPrefix()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_PURGE_SATIS_REPOSITORY, $buildConfig)) {
+            $this->info("Purging satis repository");
+            $this->purgeSatisRepository(
+                config_file: $buildConfig->getConfigFilePath(),
+                prefix: $buildConfig->getTempPrefix()
+            );
+        } else {
+            $this->info("Skipping purging satis repository");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_PURGE_SATIS_REPOSITORY, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig);
-        $this->uploadToS3(
-            prefix: $buildConfig->getTempPrefix(),
-            placeholders: $buildConfig->getPlaceholders()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig)) {
+            $this->info("Uploading to S3");
+            $this->uploadToS3(
+                prefix: $buildConfig->getTempPrefix(),
+                placeholders: $buildConfig->getPlaceholders()
+            );
+        } else {
+            $this->info("Skipping uploading to S3");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_UPLOAD_TO_S3, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
-        $this->removeMissingFilesFromS3(
-            prefix: $buildConfig->getTempPrefix()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig)) {
+            $this->info("Removing missing files from S3");
+            $this->removeMissingFilesFromS3(
+                prefix: $buildConfig->getTempPrefix()
+            );
+        } else {
+            $this->info("Skipping removing missing files from S3");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
 
 
-        $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
-        $this->clearTempDirectory(
-            prefix: $buildConfig->getTempPrefix()
-        );
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info("Clearing temp directory");
+            $this->clearTempDirectory(
+                prefix: $buildConfig->getTempPrefix()
+            );
+        } else {
+            $this->info("Skipping clearing temp directory");
+        }
         $extensionRunner->execute($this, BuildHooks::AFTER_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
     }
 

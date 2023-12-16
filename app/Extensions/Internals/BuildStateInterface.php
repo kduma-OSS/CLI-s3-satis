@@ -33,4 +33,9 @@ interface BuildStateInterface
     public function isForceFreshDownloads(): bool;
 
     public function setForceFreshDownloads(bool $force_fresh_downloads): BuildState;
+
+
+
+
+    public function isLastStepSkipped(): bool;
 }
