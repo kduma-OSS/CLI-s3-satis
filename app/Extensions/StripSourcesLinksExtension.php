@@ -32,26 +32,27 @@ class StripSourcesLinksExtension
             ->mapWithKeys(function ($parameters, $path) use ($buildState) {
                 $this->processIncludesFile(str($path), $buildState);
 
-                if ($parameters->has('sha1')) {
-                    $old_sha1 = $parameters->get('sha1');
-
-                    $parameters['sha1'] = sha1_file(
-                        config('filesystems.disks.temp.root')
-                            ->append(
-                                str($path)->start('/')->start($buildState->getTempPrefix())
-                            )
-                    );
-
-                    $newPath = str($path)->replace($old_sha1, $parameters['sha1'])->toString();
-
-                    Storage::disk('temp')->move(
-                        str($path)->start('/')->start($buildState->getTempPrefix()),
-                        str($newPath)->start('/')->start($buildState->getTempPrefix())
-                    );
-
-                    return [$newPath => $parameters];
+                if (!$parameters->has('sha1')) {
+                    return [$path => $parameters];
                 }
 
+                $old_sha1 = $parameters->get('sha1');
+
+                $parameters['sha1'] = sha1_file(
+                    config('filesystems.disks.temp.root')
+                        ->append(
+                            str($path)->start('/')->start($buildState->getTempPrefix())
+                        )
+                );
+
+                $newPath = str($path)->replace($old_sha1, $parameters['sha1'])->toString();
+
+                Storage::disk('temp')->move(
+                    str($path)->start('/')->start($buildState->getTempPrefix()),
+                    str($newPath)->start('/')->start($buildState->getTempPrefix())
+                );
+
+                return [$newPath => $parameters];
             });
 
         Storage::disk('temp')->put($packages_path, json_encode($packages->toArray(), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
