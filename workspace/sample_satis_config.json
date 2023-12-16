@@ -16,7 +16,12 @@
 
     "s3-satis": {
         "plugins": {
-            "skip-final-cleanup": true,
+            "skip-step-after-hook": {
+                "enabled": true,
+                "skip": [
+                    "BEFORE_FINAL_CLEAR_TEMP_DIRECTORY"
+                ]
+            },
             "file-restrictions-map-generator": {
                 "enabled": true
             }
