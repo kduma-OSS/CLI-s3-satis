@@ -30,8 +30,6 @@ class ExtensionRunner
 
     public function enableExtension(string $extension, Collection $configuration = null): void
     {
-        dump($this->getExtensions());
-
         if ($this->getExtensions()->has($extension) === false) {
             throw new InvalidArgumentException("Extension $extension does not exist.");
         }

@@ -32,8 +32,6 @@ class StripSourcesLinksExtension
             ->mapWithKeys(function ($parameters, $path) use ($buildState) {
                 $this->processIncludesFile(str($path), $buildState);
 
-                dump($parameters);
-
                 if ($parameters->has('sha1')) {
                     $old_sha1 = $parameters->get('sha1');
 
