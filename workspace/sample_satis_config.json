@@ -12,5 +12,14 @@
 
     "archive": {
         "directory": "dist"
+    },
+
+    "s3-satis": {
+        "plugins": {
+            "skip-final-cleanup": true,
+            "file-restrictions-map-generator": {
+                "enabled": true
+            }
+        }
     }
 }

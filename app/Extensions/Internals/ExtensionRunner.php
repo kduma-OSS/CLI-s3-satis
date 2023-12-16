@@ -3,6 +3,7 @@
 namespace App\Extensions\Internals;
 
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use LaravelZero\Framework\Commands\Command;
 use olvlvl\ComposerAttributeCollector\Attributes;
 use olvlvl\ComposerAttributeCollector\TargetClass;
@@ -17,7 +18,7 @@ class ExtensionRunner
     public function enableExtension(string $extension): void
     {
         if($this->getExtensions()->has($extension) === false) {
-            throw new \InvalidArgumentException("Extension $extension does not exist.");
+            throw new InvalidArgumentException("Extension $extension does not exist.");
         }
 
         $this->enabled_extensions[] = $extension;
@@ -26,6 +27,30 @@ class ExtensionRunner
     public function disableExtension(string $extension): void
     {
         $this->enabled_extensions = array_filter($this->enabled_extensions, fn(string $enabled): bool => $enabled !== $extension);
+    }
+
+    public function enableExtensionFromBuildState(Command $command, BuildState $buildState): void
+    {
+        $buildState->getConfig()
+            ->get('s3-satis', collect())
+            ->get('plugins', collect())
+            ->each(function (mixed $configuration, string $extension) use ($command) {
+                if ($configuration === true || $configuration instanceof Collection && $configuration->get('enabled', false) === true) {
+                    try {
+                        $this->enableExtension($extension);
+                        $command->line("Enabled {$extension} plugin.", verbosity: OutputInterface::VERBOSITY_DEBUG);
+                    } catch (InvalidArgumentException $exception) {
+                        $command->error($exception->getMessage());
+                    }
+                } elseif ($configuration === false || $configuration instanceof Collection && $configuration->get('enabled', false) === false) {
+                    $this->disableExtension($extension);
+                    $command->line("Disabled {$extension} plugin.", verbosity: OutputInterface::VERBOSITY_DEBUG);
+                } elseif($configuration instanceof Collection) {
+                    $command->error("Invalid configuration for plugin - s3-satis.plugins.{$extension}.enabled = \"{$configuration->get('enabled')}\" is not a boolean.");
+                } else {
+                    $command->error("Invalid configuration for plugin - s3-satis.plugins.{$extension} = \"{$configuration}\" is not a boolean.");
+                }
+            });
     }
 
     public function execute(Command $command, BuildHooks $hook, BuildStateInterface $buildState): bool

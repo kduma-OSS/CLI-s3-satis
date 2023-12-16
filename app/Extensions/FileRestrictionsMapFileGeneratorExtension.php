@@ -9,7 +9,7 @@ use App\Extensions\Internals\BuildStateInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
-#[BuildExtension(name: 'File Restrictions Map File Generator')]
+#[BuildExtension(name: 'File Restrictions Map File Generator', key: 'file-restrictions-map-generator')]
 class FileRestrictionsMapFileGeneratorExtension
 {
     /**
@@ -63,7 +63,7 @@ class FileRestrictionsMapFileGeneratorExtension
             ->map(function (Collection $packages) {
                 return $packages->pluck('tags')->flatten();
             });
-        
+
         Storage::disk('temp')->put(str('file_restrictions.json')->start('/')->start($buildState->getTempPrefix()), json_encode($packages->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 }

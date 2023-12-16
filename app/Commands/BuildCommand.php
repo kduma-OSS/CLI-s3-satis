@@ -55,6 +55,9 @@ class BuildCommand extends Command
             force_fresh_downloads: $this->option('fresh')
         );
 
+        $extensionRunner->enableExtensionFromBuildState($this, $buildConfig);
+
+
 
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
             $this->info("Clearing temp directory");
@@ -65,6 +68,19 @@ class BuildCommand extends Command
             $this->info("Skipping clearing temp directory");
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
+
+
+
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CREATE_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info("Creating temp directory");
+            $this->createTempDirectory(
+                prefix: $buildConfig->getTempPrefix()
+            );
+        } else {
+            $this->info("Skipping creating temp directory");
+        }
+        $extensionRunner->execute($this, BuildHooks::AFTER_CREATE_TEMP_DIRECTORY, $buildConfig);
+
 
 
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig)) {
@@ -82,6 +98,22 @@ class BuildCommand extends Command
         $extensionRunner->execute($this, BuildHooks::AFTER_DOWNLOAD_FROM_S3, $buildConfig);
 
 
+
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_PREPARE_CONFIG_FOR_SATIS, $buildConfig)) {
+            $this->info("Preparing config for satis");
+            $buildConfig->setConfigFilePath(
+                $this->prepareConfigForSatis(
+                    prefix: $buildConfig->getTempPrefix(),
+                    config: $buildConfig->getConfig(),
+                )
+            );
+        } else {
+            $this->info("Skipping preparing config for satis");
+        }
+        $extensionRunner->execute($this, BuildHooks::AFTER_PREPARE_CONFIG_FOR_SATIS, $buildConfig);
+
+
+
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig)) {
             $this->info("Building satis repository");
             $this->buildSatisRepository(
@@ -93,6 +125,7 @@ class BuildCommand extends Command
             $this->info("Skipping building satis repository");
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
+
 
 
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_PURGE_SATIS_REPOSITORY, $buildConfig)) {
@@ -107,6 +140,17 @@ class BuildCommand extends Command
         $extensionRunner->execute($this, BuildHooks::AFTER_PURGE_SATIS_REPOSITORY, $buildConfig);
 
 
+        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CLEAR_SATIS_CONFIG_FILE, $buildConfig)) {
+            $this->info("Clearing satis config file");
+            $this->clearSatisConfigFile(
+                prefix: $buildConfig->getTempPrefix(),
+            );
+        } else {
+            $this->info("Skipping clearing satis config file");
+        }
+        $extensionRunner->execute($this, BuildHooks::AFTER_CLEAR_SATIS_CONFIG_FILE, $buildConfig);
+
+
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig)) {
             $this->info("Uploading to S3");
             $this->uploadToS3(
@@ -119,6 +163,7 @@ class BuildCommand extends Command
         $extensionRunner->execute($this, BuildHooks::AFTER_UPLOAD_TO_S3, $buildConfig);
 
 
+
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig)) {
             $this->info("Removing missing files from S3");
             $this->removeMissingFilesFromS3(
@@ -128,6 +173,7 @@ class BuildCommand extends Command
             $this->info("Skipping removing missing files from S3");
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
+
 
 
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
@@ -158,9 +204,17 @@ class BuildCommand extends Command
     }
 
     /**
+     * Create the temp directory
+     */
+    protected function createTempDirectory(string $prefix): void
+    {
+        Storage::disk('temp')->makeDirectory($prefix);
+    }
+
+    /**
      * Download (or make placeholders) the files from S3
      */
-    public function downloadFromS3(string $prefix): Collection
+    protected function downloadFromS3(string $prefix): Collection
     {
         $placeholders = collect();
 
@@ -183,9 +237,25 @@ class BuildCommand extends Command
     }
 
     /**
+     * Prepare the config for satis
+     */
+    protected function prepareConfigForSatis(string $prefix, Collection $config): string
+    {
+        $config = $config->except('s3-satis');
+
+        $json = json_encode($config->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        $path = str($prefix)->append('/')->append('satis.json');
+
+        Storage::disk('temp')->put($path, $json);
+
+        return config('filesystems.disks.temp.root')->append($path);
+    }
+
+    /**
      * Generate satis repository
      */
-    public function buildSatisRepository(string $config_file, string $prefix, array $repository_url = null): void
+    protected function buildSatisRepository(string $config_file, string $prefix, array $repository_url = null): void
     {
         $application = new Application();
         $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
@@ -204,7 +274,7 @@ class BuildCommand extends Command
     /**
      * Purge the non-needed files
      */
-    public function purgeSatisRepository(string $config_file, string $prefix): void
+    protected function purgeSatisRepository(string $config_file, string $prefix): void
     {
         $application = new Application();
         $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
@@ -217,9 +287,19 @@ class BuildCommand extends Command
     }
 
     /**
+     * Clear the satis config file
+     */
+    protected function clearSatisConfigFile(string $prefix)
+    {
+        $path = str('satis.json')->start('/')->start($prefix);
+
+        Storage::disk('temp')->delete($path);
+    }
+
+    /**
      * Delete the files from S3 that are missing from the temp directory
      */
-    public function removeMissingFilesFromS3(int $prefix): void
+    protected function removeMissingFilesFromS3(int $prefix): void
     {
         $all_local_files = collect(Storage::disk('temp')->allFiles($prefix))
             ->map(fn($file) => str($file))
@@ -237,7 +317,7 @@ class BuildCommand extends Command
     /**
      * Upload the generated files to S3
      */
-    public function uploadToS3(int $prefix, Collection $placeholders): void
+    protected function uploadToS3(int $prefix, Collection $placeholders): void
     {
         collect(Storage::disk('temp')->allFiles($prefix))
             ->map(fn($file) => str($file))
