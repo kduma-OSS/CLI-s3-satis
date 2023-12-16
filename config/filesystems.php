@@ -10,7 +10,7 @@ return [
 
         'temp' => [
             'driver' => 'local',
-            'root' => sys_get_temp_dir(),
+            'root' => str(sys_get_temp_dir())->finish(DIRECTORY_SEPARATOR)->append('s3-satis-generator')->finish(DIRECTORY_SEPARATOR),
         ],
 
         's3' => [
