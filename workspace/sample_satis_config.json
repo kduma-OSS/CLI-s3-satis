@@ -11,16 +11,18 @@
     "require-all": true,
 
     "archive": {
-        "directory": "dist"
+        "directory": "dist",
+        "format": "tar",
+        "skip-dev": true
     },
 
     "s3-satis": {
         "plugins": {
-            "file-restrictions-map-generator": true,
             "cache": {
-                "enabled": true,
+                "enabled": false,
                 "path": "temp"
             },
+            "file-restrictions-map-generator": false,
             "strip-sources-links": false,
             "skip-step-after-hook": {
                 "enabled": false,
