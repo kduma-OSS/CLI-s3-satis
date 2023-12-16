@@ -1,0 +1,17 @@
+{
+    "name": "my/repository",
+    "homepage": "http://packages.example.org",
+    "repositories": [
+        { "type": "vcs", "url": "https://github.com/kduma-OSS/WebPrint-Client" },
+        { "type": "vcs", "url": "https://github.com/kduma-OSS/CLI-pdf-scan-splitter" }
+    ],
+    "require-all": true,
+    "archive": {
+        "directory": "dist",
+        "format": "tar",
+        "prefix-url": "https://amazing.cdn.example.org",
+        "skip-dev": true
+    },
+    "require-dependencies": true,
+    "require-dev-dependencies": true
+}
