@@ -16,9 +16,16 @@
 
     "s3-satis": {
         "plugins": {
+            "file-restrictions-map-generator": true,
             "skip-step-after-hook": {
-                "enabled": true,
+                "enabled": false,
                 "skip": [
+                    "BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY",
+                    "BEFORE_CREATE_TEMP_DIRECTORY",
+                    "BEFORE_DOWNLOAD_FROM_S3",
+                    "BEFORE_BUILD_SATIS_REPOSITORY",
+                    "BEFORE_UPLOAD_TO_S3",
+                    "BEFORE_REMOVE_MISSING_FILES_FROM_S3",
                     "BEFORE_FINAL_CLEAR_TEMP_DIRECTORY"
                 ]
             },
@@ -40,9 +47,6 @@
                     "BEFORE_FINAL_CLEAR_TEMP_DIRECTORY",
                     "AFTER_FINAL_CLEAR_TEMP_DIRECTORY"
                 ]
-            },
-            "file-restrictions-map-generator": {
-                "enabled": true
             }
         }
     }
