@@ -78,8 +78,12 @@ class BuildCommand extends Command
         if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig)) {
             if (! $buildConfig->isForceFreshDownloads()) {
                 $this->info('Downloading from S3');
+                [$placeholders, $crc] = $this->downloadFromS3(prefix: $buildConfig->getTempPrefix());
                 $buildConfig->setPlaceholders(
-                    placeholders: $this->downloadFromS3(prefix: $buildConfig->getTempPrefix())
+                    placeholders: $placeholders
+                );
+                $buildConfig->setCrc(
+                    crc: $crc
                 );
             } else {
                 $this->info('Skipping downloading from S3 because --fresh was passed');
@@ -105,7 +109,8 @@ class BuildCommand extends Command
             $this->info('Uploading to S3');
             $this->uploadToS3(
                 prefix: $buildConfig->getTempPrefix(),
-                placeholders: $buildConfig->getPlaceholders()
+                placeholders: $buildConfig->getPlaceholders(),
+                crc: $buildConfig->getCrc()
             );
         } else {
             $this->info('Skipping uploading to S3');
@@ -160,12 +165,13 @@ class BuildCommand extends Command
     /**
      * Download (or make placeholders) the files from S3
      */
-    protected function downloadFromS3(string $prefix): Collection
+    protected function downloadFromS3(string $prefix): array
     {
         $placeholders = collect();
+        $crc = collect();
 
         collect(Storage::disk('s3')->allFiles())
-            ->map(fn ($file) => str($file))->each(function (Stringable $s3_path) use ($prefix, $placeholders) {
+            ->map(fn ($file) => str($file))->each(function (Stringable $s3_path) use ($prefix, $placeholders, $crc) {
                 $temp_path = $s3_path->start('/')->start($prefix);
 
                 if ($s3_path->afterLast('.') == 'tar' || $s3_path->afterLast('.') == 'zip') {
@@ -176,10 +182,11 @@ class BuildCommand extends Command
                 } else {
                     $this->line("Downloading {$s3_path} from S3", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     Storage::disk('temp')->writeStream($temp_path, Storage::disk('s3')->readStream($s3_path));
+                    $crc[$temp_path->toString()] = crc32(Storage::disk('temp')->get($temp_path));
                 }
             });
 
-        return $placeholders;
+        return [$placeholders, $crc];
     }
 
     /**
@@ -222,11 +229,11 @@ class BuildCommand extends Command
     /**
      * Upload the generated files to S3
      */
-    protected function uploadToS3(int $prefix, Collection $placeholders): void
+    protected function uploadToS3(int $prefix, Collection $placeholders, Collection $crc): void
     {
         collect(Storage::disk('temp')->allFiles($prefix))
             ->map(fn ($file) => str($file))
-            ->tap(function (Collection $files) use ($prefix, $placeholders) {
+            ->tap(function (Collection $files) use ($prefix, $placeholders, $crc) {
                 [$placeholder_files, $normal_files] = $files->partition(fn (Stringable $file) => $placeholders->contains($file->toString()));
 
                 $placeholder_files->each(function (Stringable $temp_path) use ($prefix) {
@@ -240,8 +247,17 @@ class BuildCommand extends Command
                     }
                 });
 
-                $normal_files->each(function (Stringable $temp_path) use ($prefix) {
+                $normal_files->each(function (Stringable $temp_path) use ($crc, $prefix) {
                     $s3_path = $temp_path->after($prefix)->ltrim('/');
+
+                    if($crc->has($temp_path->toString())) {
+                        $this->line("Checking {$s3_path} for changes", verbosity: OutputInterface::VERBOSITY_VERBOSE);
+                        $local_crc = crc32(Storage::disk('temp')->get($temp_path));
+                        if ($crc[$temp_path->toString()] == $local_crc) {
+                            $this->line("Skipping {$s3_path} because it has not changed", verbosity: OutputInterface::VERBOSITY_VERBOSE);
+                            return;
+                        }
+                    }
 
                     $this->line("Uploading {$s3_path} to S3", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                     Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));

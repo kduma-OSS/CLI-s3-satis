@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 class BuildState implements BuildStateInterface
 {
     protected Collection $placeholders;
+    protected Collection $crc;
 
     public bool $last_step_executed = false;
 
@@ -19,6 +20,7 @@ class BuildState implements BuildStateInterface
         protected bool $force_fresh_downloads = false,
     ) {
         $this->placeholders = collect();
+        $this->crc = collect();
 
         $this->config = collect(json_decode(file_get_contents($config_file_path), true))->recursive();
     }
@@ -75,6 +77,17 @@ class BuildState implements BuildStateInterface
     {
         $this->placeholders = $placeholders;
 
+        return $this;
+    }
+
+    public function getCrc(): Collection
+    {
+        return $this->crc;
+    }
+
+    public function setCrc(Collection $crc): BuildState
+    {
+        $this->crc = $crc;
         return $this;
     }
 

@@ -31,4 +31,8 @@ interface BuildStateInterface
     public function isLastStepSkipped(): bool;
 
     public function getConfig(): Collection;
+
+    public function getCrc(): Collection;
+
+    public function setCrc(Collection $crc): BuildState;
 }
