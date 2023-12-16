@@ -10,7 +10,7 @@ class PrepareConfigForSatisExtension
     private ?string $original_path = null;
 
     #[BuildHook(BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY)]
-    public function prepare(BuildState $buildState): void
+    public function prepare(BuildStateInterface $buildState): void
     {
         $config = $buildState->getConfig()->except('s3-satis');
 
