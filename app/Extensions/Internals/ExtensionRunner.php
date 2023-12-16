@@ -12,7 +12,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ExtensionRunner
 {
     private ?Collection $extensions = null;
-    private array $enabled_extensions = [];
+    private array $enabled_extensions = [
+        'satis-purge',
+    ];
     private array $initialized_extensions = [];
 
     public function enableExtension(string $extension): void

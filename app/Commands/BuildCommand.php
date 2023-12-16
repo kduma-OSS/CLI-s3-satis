@@ -127,19 +127,6 @@ class BuildCommand extends Command
         $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
 
 
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_PURGE_SATIS_REPOSITORY, $buildConfig)) {
-            $this->info("Purging satis repository");
-            $this->purgeSatisRepository(
-                config_file: $buildConfig->getConfigFilePath(),
-                prefix: $buildConfig->getTempPrefix()
-            );
-        } else {
-            $this->info("Skipping purging satis repository");
-        }
-        $extensionRunner->execute($this, BuildHooks::AFTER_PURGE_SATIS_REPOSITORY, $buildConfig);
-
-
         if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CLEAR_SATIS_CONFIG_FILE, $buildConfig)) {
             $this->info("Clearing satis config file");
             $this->clearSatisConfigFile(
@@ -269,21 +256,6 @@ class BuildCommand extends Command
                 ] + ($repository_url ? ['--repository-url' => $repository_url] : [])
             )
         );
-    }
-
-    /**
-     * Purge the non-needed files
-     */
-    protected function purgeSatisRepository(string $config_file, string $prefix): void
-    {
-        $application = new Application();
-        $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
-
-        $application->run(new ArrayInput([
-            'command' => 'purge',
-            'file' => $config_file,
-            'output-dir' => (string) config('filesystems.disks.temp.root')->append($prefix)
-        ]));
     }
 
     /**

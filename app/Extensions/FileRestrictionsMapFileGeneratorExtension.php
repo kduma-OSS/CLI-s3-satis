@@ -15,7 +15,7 @@ class FileRestrictionsMapFileGeneratorExtension
     /**
      * Prepare file restrictions map file
      */
-    #[BuildHook(BuildHooks::AFTER_PURGE_SATIS_REPOSITORY)]
+    #[BuildHook(BuildHooks::AFTER_BUILD_SATIS_REPOSITORY)]
     public function hook(BuildStateInterface $buildState): void
     {
         $homepage = $buildState->getConfig()->get('homepage');
