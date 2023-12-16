@@ -25,6 +25,7 @@ class BuildCommand extends Command
         {config-file? : The path to the satis config file.}
         {--repository-url=* : Only update the repository at given URL(s).}
         {--fresh : Force a rebuild of all packages.}
+        {--set-extension=* : Configures the build to use the given extension(s).}
     ';
 
     /**
@@ -54,6 +55,17 @@ class BuildCommand extends Command
         );
 
         $extensionRunner->enableExtensionFromBuildState($this, $buildConfig);
+
+        if($this->option('set-extension')) {
+            $runtime_extensions = collect($this->option('set-extension'));
+
+            if ($runtime_extensions->filter(fn($name) => !$name)->count()) {
+                $this->error('Extension names cannot be empty');
+                exit(1);
+            }
+
+            $extensionRunner->enableExtensionFromRunOptions($this, $runtime_extensions);
+        }
 
         if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
             $this->info('Clearing temp directory');

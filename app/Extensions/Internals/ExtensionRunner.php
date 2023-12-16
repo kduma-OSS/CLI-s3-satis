@@ -2,6 +2,7 @@
 
 namespace App\Extensions\Internals;
 
+use App\Commands\BuildCommand;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use LaravelZero\Framework\Commands\Command;
@@ -27,17 +28,21 @@ class ExtensionRunner
         $this->extensions_configurations = collect();
     }
 
-    public function enableExtension(string $extension): void
+    public function enableExtension(string $extension, Collection $configuration = null): void
     {
+        dump($this->getExtensions());
+
         if ($this->getExtensions()->has($extension) === false) {
             throw new InvalidArgumentException("Extension $extension does not exist.");
         }
 
-        if (in_array($extension, $this->enabled_extensions, true)) {
-            return;
+        if (!in_array($extension, $this->enabled_extensions, true)) {
+            $this->enabled_extensions[] = $extension;
         }
 
-        $this->enabled_extensions[] = $extension;
+        if ($configuration instanceof Collection) {
+            $this->extensions_configurations[$extension] = new PluginConfig($configuration->except('enabled')->recursive());
+        }
     }
 
     public function disableExtension(string $extension): void
@@ -71,6 +76,62 @@ class ExtensionRunner
                     $this->extensions_configurations[$extension] = new PluginConfig($configuration->except('enabled'));
                 }
             });
+    }
+
+    public function enableExtensionFromRunOptions(Command $command, Collection $extensionsList): void
+    {
+        $extensionsList->map(function (string $extension) {
+            if(str($extension)->contains(':')) {
+                [$extension, $config] = explode(':', $extension, 2);
+            }
+
+            return [
+                'key' => $extension,
+                'config' => $config ?? null,
+            ];
+        })->map(function (array $extension) {
+            if($extension['config'] === null || $extension['config'] === '') {
+                return $extension;
+            }
+
+            $extension['config'] = collect(str_getcsv($extension['config'], ':', '\'', '\\'))
+                ->mapWithKeys(function (string $value) {
+                    [$key, $value] = explode('=', $value, 2);
+
+                    return [$key => $value];
+                })
+                ->map(function (string $value) {
+                    if($value === 'true') {
+                        return true;
+                    }
+
+                    if($value === 'false') {
+                        return false;
+                    }
+
+                    if($value === 'null') {
+                        return null;
+                    }
+
+                    if(is_numeric($value)) {
+                        return (int) $value;
+                    }
+
+                    return $value;
+                })
+                ->undot();
+
+            return $extension;
+        })->each(function (array $extension) use ($command) {
+            if($extension['config']->get('enabled', true) === false) {
+                $this->disableExtension($extension['key']);
+                $command->line("Disabled {$extension['key']} plugin (from options).", verbosity: OutputInterface::VERBOSITY_DEBUG);
+                return;
+            }
+
+            $this->enableExtension($extension['key'], $extension['config']);
+            $command->line("Enabled {$extension['key']} plugin (from options).", verbosity: OutputInterface::VERBOSITY_DEBUG);
+        });
     }
 
     public function execute(Command $command, BuildHooks $hook, BuildStateInterface $buildState): bool
