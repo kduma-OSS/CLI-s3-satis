@@ -18,7 +18,9 @@ class FileRestrictionsMapFileGeneratorExtension
     #[BuildHook(BuildHooks::AFTER_BUILD_SATIS_REPOSITORY)]
     public function hook(BuildStateInterface $buildState): void
     {
-        $homepage = $buildState->getConfig()->get('homepage');
+        $url_host = $buildState->getConfig()
+            ->get('archive', collect())
+            ->get('prefix-url', $buildState->getConfig()->get('homepage'));
 
         $packages = json_decode(Storage::disk('temp')->get(str('packages.json')->start('/')->start($buildState->getTempPrefix())), true);
         $packages = collect($packages['available-packages'])
@@ -43,12 +45,12 @@ class FileRestrictionsMapFileGeneratorExtension
                     ->flatten(1);
             })
             ->flatten(1)
-            ->map(function ($package) use ($homepage) {
-                $package['url'] = str($package['url'])->replace($homepage, '')->ltrim('/')->toString();
+            ->map(function ($package) use ($url_host) {
+                $package['url'] = str($package['url'])->replace($url_host, '')->ltrim('/')->toString();
 
                 return $package;
             })
-            ->map(function ($package) use ($homepage) {
+            ->map(function ($package) use ($url_host) {
                 $package['tags'][] = "{$package['package']}:{$package['version']}";
 
                 if (preg_match('/^(\\d)\\.(\\d)\\.(\\d)\\.(\\d)$/u', $package['version'], $matches)) {
