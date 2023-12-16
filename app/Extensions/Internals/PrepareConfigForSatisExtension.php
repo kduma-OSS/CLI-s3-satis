@@ -20,7 +20,7 @@ class PrepareConfigForSatisExtension
 
         Storage::disk('temp')->put($path, $json);
 
-        $config_file_path = config('filesystems.disks.temp.root')->append($buildState->getTempPrefix());
+        $config_file_path = config('filesystems.disks.temp.root')->append($path);
 
         $this->original_path = $buildState->getConfigFilePath();
         $buildState->setConfigFilePath($config_file_path);
