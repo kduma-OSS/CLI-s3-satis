@@ -22,6 +22,25 @@
                     "BEFORE_FINAL_CLEAR_TEMP_DIRECTORY"
                 ]
             },
+            "pause-at-hook": {
+                "enabled": true,
+                "pause": [
+                    "BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY",
+                    "AFTER_INITIAL_CLEAR_TEMP_DIRECTORY",
+                    "BEFORE_CREATE_TEMP_DIRECTORY",
+                    "AFTER_CREATE_TEMP_DIRECTORY",
+                    "BEFORE_DOWNLOAD_FROM_S3",
+                    "AFTER_DOWNLOAD_FROM_S3",
+                    "BEFORE_BUILD_SATIS_REPOSITORY",
+                    "AFTER_BUILD_SATIS_REPOSITORY",
+                    "BEFORE_UPLOAD_TO_S3",
+                    "AFTER_UPLOAD_TO_S3",
+                    "BEFORE_REMOVE_MISSING_FILES_FROM_S3",
+                    "AFTER_REMOVE_MISSING_FILES_FROM_S3",
+                    "BEFORE_FINAL_CLEAR_TEMP_DIRECTORY",
+                    "AFTER_FINAL_CLEAR_TEMP_DIRECTORY"
+                ]
+            },
             "file-restrictions-map-generator": {
                 "enabled": true
             }
