@@ -1,24 +1,29 @@
-name: Build PHAR
+name: Build PHAR Archive
 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ master ]
+    branches: [ "main", "develop" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*', 'v*.*', 'v*' ]
   pull_request:
-    branches: [ master ]
+    branches: [ "main", "develop" ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  build:
+  build-phar:
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
 
       - name: Validate composer.json and composer.lock
         run: composer validate --strict --no-check-all
@@ -44,11 +49,11 @@ jobs:
 
       - name: Build PHAR archive
         if:   startsWith(github.ref, 'refs/tags/')
-        run: php s3-satis app:build --env=development --build-version=${{ env.TAG }}
+        run: php s3-satis app:build --build-version=${{ env.TAG }}
 
       - name: Build PHAR archive
         if:   ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: php s3-satis app:build --env=development --build-version=$(git rev-parse --short "$GITHUB_SHA")
+        run: php s3-satis app:build --build-version=$(git rev-parse --short "$GITHUB_SHA")
 
       - name: Rename phar
         run: mv builds/s3-satis builds/s3-satis.phar
