@@ -16,14 +16,18 @@ WORKDIR /usr/src/satis
 
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-RUN docker-php-ext-install zip
-RUN composer install --no-interaction --no-progress --no-scripts --optimize-autoloader
-#    --ignore-platform-req=ext-zip
+RUN composer install --no-interaction --no-progress --no-scripts --optimize-autoloader --no-dev --ignore-platform-req=ext-zip
 
 RUN ./s3-satis app:build --build-version=${BUILD_VERSION} --ansi -vvv
 
 
-FROM --platform=$BUILDPLATFORM php:8.2-cli AS runtime
+FROM php:8.2-cli AS runtime
+
+RUN apt-get update \
+	&& apt-get -y install libzip-dev \
+    && apt-get -y autoremove \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN docker-php-ext-install zip
 
@@ -39,4 +43,4 @@ ENV AWS_ENDPOINT=""
 ENV AWS_USE_PATH_STYLE_ENDPOINT="false"
 
 
-CMD [ "php", "./s3-satis"]
+ENTRYPOINT [ "php", "./s3-satis"]
