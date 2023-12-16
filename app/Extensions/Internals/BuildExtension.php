@@ -8,7 +8,8 @@ use Attribute;
 class BuildExtension
 {
     public function __construct(
-        public string  $name,
+        public string $name,
         public ?string $key = null,
-    ) { }
+    ) {
+    }
 }

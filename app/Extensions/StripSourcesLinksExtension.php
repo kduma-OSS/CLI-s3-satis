@@ -21,12 +21,12 @@ class StripSourcesLinksExtension
         $packages = collect($packages)->recursive();
 
         $packages->get('available-packages', collect())
-            ->map(fn($package) => [
+            ->map(fn ($package) => [
                 str($packages->get('metadata-url'))->replace('%package%', $package),
-                str($packages->get('metadata-url'))->replace('%package%', $package . '~dev'),
+                str($packages->get('metadata-url'))->replace('%package%', $package.'~dev'),
             ])
             ->flatten()
-            ->map(fn(Stringable $path) => $this->processPackagesFile($path, $buildState));
+            ->map(fn (Stringable $path) => $this->processPackagesFile($path, $buildState));
 
         $packages['includes'] = $packages->get('includes', collect())
             ->mapWithKeys(function ($parameters, $path) use ($buildState) {
@@ -34,7 +34,7 @@ class StripSourcesLinksExtension
 
                 dump($parameters);
 
-                if($parameters->has('sha1')) {
+                if ($parameters->has('sha1')) {
                     $old_sha1 = $parameters->get('sha1');
 
                     $parameters['sha1'] = sha1_file(

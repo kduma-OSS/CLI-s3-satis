@@ -11,5 +11,6 @@ class ExtensionDescriptor
         public readonly string $key,
         public readonly string $class_name,
         public readonly Collection $hooks,
-    ) { }
+    ) {
+    }
 }

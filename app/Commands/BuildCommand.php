@@ -11,7 +11,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Stringable;
 use LaravelZero\Framework\Commands\Command;
-
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -42,11 +41,10 @@ class BuildCommand extends Command
     {
         $config_file = str($this->argument('config-file') ?: str(getcwd())->finish(DIRECTORY_SEPARATOR)->append('satis.json'));
 
-        if(!file_exists($config_file)) {
+        if (! file_exists($config_file)) {
             $this->error("Config file {$config_file} does not exist");
             exit(1);
         }
-
 
         $buildConfig = new BuildState(
             temp_prefix: crc32($config_file),
@@ -57,93 +55,80 @@ class BuildCommand extends Command
 
         $extensionRunner->enableExtensionFromBuildState($this, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
-            $this->info("Clearing temp directory");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info('Clearing temp directory');
             $this->clearTempDirectory(
                 prefix: $buildConfig->getTempPrefix()
             );
         } else {
-            $this->info("Skipping clearing temp directory");
+            $this->info('Skipping clearing temp directory');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CREATE_TEMP_DIRECTORY, $buildConfig)) {
-            $this->info("Creating temp directory");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_CREATE_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info('Creating temp directory');
             $this->createTempDirectory(
                 prefix: $buildConfig->getTempPrefix()
             );
         } else {
-            $this->info("Skipping creating temp directory");
+            $this->info('Skipping creating temp directory');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_CREATE_TEMP_DIRECTORY, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig)) {
-            if (!$buildConfig->isForceFreshDownloads()) {
-                $this->info("Downloading from S3");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig)) {
+            if (! $buildConfig->isForceFreshDownloads()) {
+                $this->info('Downloading from S3');
                 $buildConfig->setPlaceholders(
                     placeholders: $this->downloadFromS3(prefix: $buildConfig->getTempPrefix())
                 );
             } else {
-                $this->info("Skipping downloading from S3 because --fresh was passed");
+                $this->info('Skipping downloading from S3 because --fresh was passed');
             }
         } else {
-            $this->info("Skipping downloading from S3");
+            $this->info('Skipping downloading from S3');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_DOWNLOAD_FROM_S3, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig)) {
-            $this->info("Building satis repository");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig)) {
+            $this->info('Building satis repository');
             $this->buildSatisRepository(
                 config_file: $buildConfig->getConfigFilePath(),
                 prefix: $buildConfig->getTempPrefix(),
                 repository_url: $buildConfig->getRepositoryUrls()
             );
         } else {
-            $this->info("Skipping building satis repository");
+            $this->info('Skipping building satis repository');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
 
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig)) {
-            $this->info("Uploading to S3");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig)) {
+            $this->info('Uploading to S3');
             $this->uploadToS3(
                 prefix: $buildConfig->getTempPrefix(),
                 placeholders: $buildConfig->getPlaceholders()
             );
         } else {
-            $this->info("Skipping uploading to S3");
+            $this->info('Skipping uploading to S3');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_UPLOAD_TO_S3, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig)) {
-            $this->info("Removing missing files from S3");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig)) {
+            $this->info('Removing missing files from S3');
             $this->removeMissingFilesFromS3(
                 prefix: $buildConfig->getTempPrefix()
             );
         } else {
-            $this->info("Skipping removing missing files from S3");
+            $this->info('Skipping removing missing files from S3');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
 
-
-
-        if($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
-            $this->info("Clearing temp directory");
+        if ($buildConfig->last_step_executed = $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig)) {
+            $this->info('Clearing temp directory');
             $this->clearTempDirectory(
                 prefix: $buildConfig->getTempPrefix()
             );
         } else {
-            $this->info("Skipping clearing temp directory");
+            $this->info('Skipping clearing temp directory');
         }
         $extensionRunner->execute($this, BuildHooks::AFTER_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
     }
@@ -180,7 +165,7 @@ class BuildCommand extends Command
         $placeholders = collect();
 
         collect(Storage::disk('s3')->allFiles())
-            ->map(fn($file) => str($file))->each(function (Stringable $s3_path) use ($prefix, $placeholders) {
+            ->map(fn ($file) => str($file))->each(function (Stringable $s3_path) use ($prefix, $placeholders) {
                 $temp_path = $s3_path->start('/')->start($prefix);
 
                 if ($s3_path->afterLast('.') == 'tar' || $s3_path->afterLast('.') == 'zip') {
@@ -200,7 +185,7 @@ class BuildCommand extends Command
     /**
      * Generate satis repository
      */
-    protected function buildSatisRepository(string $config_file, string $prefix, array $repository_url = null): void
+    protected function buildSatisRepository(string $config_file, string $prefix, ?array $repository_url = null): void
     {
         $application = new Application();
         $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
@@ -210,7 +195,7 @@ class BuildCommand extends Command
                 [
                     'command' => 'build',
                     'file' => $config_file,
-                    'output-dir' => (string)config('filesystems.disks.temp.root')->append($prefix)
+                    'output-dir' => (string) config('filesystems.disks.temp.root')->append($prefix),
                 ] + ($repository_url ? ['--repository-url' => $repository_url] : [])
             )
         );
@@ -222,11 +207,11 @@ class BuildCommand extends Command
     protected function removeMissingFilesFromS3(int $prefix): void
     {
         $all_local_files = collect(Storage::disk('temp')->allFiles($prefix))
-            ->map(fn($file) => str($file))
-            ->map(fn(Stringable $temp_path) => $temp_path->after($prefix)->ltrim('/'));
+            ->map(fn ($file) => str($file))
+            ->map(fn (Stringable $temp_path) => $temp_path->after($prefix)->ltrim('/'));
 
         collect(Storage::disk('s3')->allFiles())
-            ->map(fn($file) => str($file))
+            ->map(fn ($file) => str($file))
             ->diff($all_local_files)
             ->each(function (Stringable $s3_path) {
                 $this->line("Deleting {$s3_path} because it is missing", verbosity: OutputInterface::VERBOSITY_VERBOSE);
@@ -240,9 +225,9 @@ class BuildCommand extends Command
     protected function uploadToS3(int $prefix, Collection $placeholders): void
     {
         collect(Storage::disk('temp')->allFiles($prefix))
-            ->map(fn($file) => str($file))
+            ->map(fn ($file) => str($file))
             ->tap(function (Collection $files) use ($prefix, $placeholders) {
-                [$placeholder_files, $normal_files] = $files->partition(fn(Stringable $file) => $placeholders->contains($file->toString()));
+                [$placeholder_files, $normal_files] = $files->partition(fn (Stringable $file) => $placeholders->contains($file->toString()));
 
                 $placeholder_files->each(function (Stringable $temp_path) use ($prefix) {
                     $s3_path = $temp_path->after($prefix)->ltrim('/');

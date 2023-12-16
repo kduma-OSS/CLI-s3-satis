@@ -7,7 +7,9 @@ use Illuminate\Support\Collection;
 class BuildState implements BuildStateInterface
 {
     protected Collection $placeholders;
+
     public bool $last_step_executed = false;
+
     protected Collection $config;
 
     public function __construct(
@@ -53,12 +55,14 @@ class BuildState implements BuildStateInterface
     public function setRepositoryUrls(array $repository_urls): BuildState
     {
         $this->repository_urls = $repository_urls;
+
         return $this;
     }
 
     public function addRepositoryUrl(string $repository_url): BuildState
     {
         $this->repository_urls[] = $repository_url;
+
         return $this;
     }
 
@@ -70,6 +74,7 @@ class BuildState implements BuildStateInterface
     public function setPlaceholders(Collection $placeholders): BuildState
     {
         $this->placeholders = $placeholders;
+
         return $this;
     }
 
@@ -81,12 +86,13 @@ class BuildState implements BuildStateInterface
     public function setForceFreshDownloads(bool $force_fresh_downloads): BuildState
     {
         $this->force_fresh_downloads = $force_fresh_downloads;
+
         return $this;
     }
 
     public function isLastStepSkipped(): bool
     {
-        return !$this->last_step_executed;
+        return ! $this->last_step_executed;
     }
 
     public function getConfig(): Collection

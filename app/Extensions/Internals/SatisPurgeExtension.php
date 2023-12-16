@@ -17,7 +17,7 @@ class SatisPurgeExtension
         $application->run(new ArrayInput([
             'command' => 'purge',
             'file' => $buildState->getConfigFilePath(),
-            'output-dir' => (string) config('filesystems.disks.temp.root')->append($buildState->getTempPrefix())
+            'output-dir' => (string) config('filesystems.disks.temp.root')->append($buildState->getTempPrefix()),
         ]));
     }
 }

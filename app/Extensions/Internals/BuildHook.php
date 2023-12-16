@@ -9,5 +9,6 @@ class BuildHook
 {
     public function __construct(
         public BuildHooks $hook,
-    ) { }
+    ) {
+    }
 }

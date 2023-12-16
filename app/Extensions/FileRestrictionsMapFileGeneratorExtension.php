@@ -24,19 +24,19 @@ class FileRestrictionsMapFileGeneratorExtension
 
         $packages = json_decode(Storage::disk('temp')->get(str('packages.json')->start('/')->start($buildState->getTempPrefix())), true);
         $packages = collect($packages['available-packages'])
-            ->map(fn($package) => [
+            ->map(fn ($package) => [
                 str($packages['metadata-url'])->replace('%package%', $package),
-                str($packages['metadata-url'])->replace('%package%', $package . '~dev'),
+                str($packages['metadata-url'])->replace('%package%', $package.'~dev'),
             ])
             ->flatten()
-            ->map(fn($path) => json_decode(Storage::disk('temp')->get($path->start('/')->start($buildState->getTempPrefix())), true))
+            ->map(fn ($path) => json_decode(Storage::disk('temp')->get($path->start('/')->start($buildState->getTempPrefix())), true))
             ->pluck('packages')
             ->map(function ($packages) {
                 return collect($packages)
                     ->map(function ($versions, $package) {
                         return collect($versions)
-                            ->filter(fn($version) => isset($version['dist']['url']))
-                            ->map(fn($version) => [
+                            ->filter(fn ($version) => isset($version['dist']['url']))
+                            ->map(fn ($version) => [
                                 'package' => $package,
                                 'url' => $version['dist']['url'],
                                 'version' => $version['version_normalized'],
@@ -50,7 +50,7 @@ class FileRestrictionsMapFileGeneratorExtension
 
                 return $package;
             })
-            ->map(function ($package) use ($url_host) {
+            ->map(function ($package) {
                 $package['tags'][] = "{$package['package']}:{$package['version']}";
 
                 if (preg_match('/^(\\d)\\.(\\d)\\.(\\d)\\.(\\d)$/u', $package['version'], $matches)) {

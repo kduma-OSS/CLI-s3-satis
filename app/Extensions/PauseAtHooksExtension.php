@@ -5,11 +5,7 @@ namespace App\Extensions;
 use App\Extensions\Internals\BuildExtension;
 use App\Extensions\Internals\BuildHook;
 use App\Extensions\Internals\BuildHooks;
-use App\Extensions\Internals\BuildState;
-use App\Extensions\Internals\BuildStateInterface;
-use App\Extensions\Internals\ExtensionRunner;
 use App\Extensions\Internals\PluginConfig;
-use Illuminate\Support\Collection;
 use LaravelZero\Framework\Commands\Command;
 
 #[BuildExtension(name: 'Pause At Hook', key: 'pause-at-hook')]
@@ -31,9 +27,9 @@ class PauseAtHooksExtension
     #[BuildHook(BuildHooks::AFTER_FINAL_CLEAR_TEMP_DIRECTORY)]
     public function hook(BuildHooks $hook, PluginConfig $config, Command $command): void
     {
-        if($config->get('pause', collect())->contains($hook->name)) {
+        if ($config->get('pause', collect())->contains($hook->name)) {
             $command->warn("Paused at hook {$hook->name}.");
-            $command->ask("Press enter to continue...");
+            $command->ask('Press enter to continue...');
         }
     }
 }

@@ -12,11 +12,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ExtensionRunner
 {
     private ?Collection $extensions = null;
+
     private array $enabled_extensions = [
         'prepare-config-for-satis',
         'satis-purge',
     ];
+
     private array $initialized_extensions = [];
+
     private Collection $extensions_configurations;
 
     public function __construct()
@@ -24,10 +27,9 @@ class ExtensionRunner
         $this->extensions_configurations = collect();
     }
 
-
     public function enableExtension(string $extension): void
     {
-        if($this->getExtensions()->has($extension) === false) {
+        if ($this->getExtensions()->has($extension) === false) {
             throw new InvalidArgumentException("Extension $extension does not exist.");
         }
 
@@ -40,7 +42,7 @@ class ExtensionRunner
 
     public function disableExtension(string $extension): void
     {
-        $this->enabled_extensions = array_filter($this->enabled_extensions, fn(string $enabled): bool => $enabled !== $extension);
+        $this->enabled_extensions = array_filter($this->enabled_extensions, fn (string $enabled): bool => $enabled !== $extension);
     }
 
     public function enableExtensionFromBuildState(Command $command, BuildState $buildState): void
@@ -59,13 +61,13 @@ class ExtensionRunner
                 } elseif ($configuration === false || $configuration instanceof Collection && $configuration->get('enabled', false) === false) {
                     $this->disableExtension($extension);
                     $command->line("Disabled {$extension} plugin.", verbosity: OutputInterface::VERBOSITY_DEBUG);
-                } elseif($configuration instanceof Collection) {
+                } elseif ($configuration instanceof Collection) {
                     $command->error("Invalid configuration for plugin - s3-satis.plugins.{$extension}.enabled = \"{$configuration->get('enabled')}\" is not a boolean.");
                 } else {
                     $command->error("Invalid configuration for plugin - s3-satis.plugins.{$extension} = \"{$configuration}\" is not a boolean.");
                 }
 
-                if($configuration instanceof Collection) {
+                if ($configuration instanceof Collection) {
                     $this->extensions_configurations[$extension] = new PluginConfig($configuration->except('enabled'));
                 }
             });
@@ -78,30 +80,30 @@ class ExtensionRunner
         $command->line("Running {$hook->name} plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
 
         app()->scoped(BuildStateInterface::class, BuildState::class);
-        app()->scoped(BuildState::class, fn() => $buildState);
-        app()->scoped(BuildHooks::class, fn() => $hook);
-        app()->scoped(Command::class, fn() => $command);
-        app()->scoped(ExtensionRunner::class, fn() => $this);
+        app()->scoped(BuildState::class, fn () => $buildState);
+        app()->scoped(BuildHooks::class, fn () => $hook);
+        app()->scoped(Command::class, fn () => $command);
+        app()->scoped(ExtensionRunner::class, fn () => $this);
 
         $extensions = $this->getExtensions();
         $extensions = collect($this->enabled_extensions)
-            ->map(fn(string $key): ExtensionDescriptor => $extensions->get($key))
-            ->filter(fn(ExtensionDescriptor $descriptor): bool => $descriptor->hooks->has($hook->name))
+            ->map(fn (string $key): ExtensionDescriptor => $extensions->get($key))
+            ->filter(fn (ExtensionDescriptor $descriptor): bool => $descriptor->hooks->has($hook->name))
             ->each(function (ExtensionDescriptor $descriptor) {
-                app()->scoped(PluginConfig::class, fn() => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
+                app()->scoped(PluginConfig::class, fn () => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
                 $this->instantiateExtension($descriptor);
             })
-            ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook, $buildState) {
-                app()->scoped(ExtensionDescriptor::class, fn() => $descriptor);
-                app()->scoped(PluginConfig::class, fn() => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
+            ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook) {
+                app()->scoped(ExtensionDescriptor::class, fn () => $descriptor);
+                app()->scoped(PluginConfig::class, fn () => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
 
-                $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, $buildState, &$skip_flag) {
+                $descriptor->hooks->get($hook->name)->each(function (HookDescriptor $hook) use ($command, $descriptor, &$skip_flag) {
                     $command->line("Running {$descriptor->key}::{$hook->method_name}() plugin hook...", verbosity: OutputInterface::VERBOSITY_DEBUG);
 
-                    app()->scoped(HookDescriptor::class, fn() => $hook);
+                    app()->scoped(HookDescriptor::class, fn () => $hook);
                     $result = app()->call([$this->initialized_extensions[$descriptor->class_name], $hook->method_name]);
 
-                    if(false === $result) {
+                    if ($result === false) {
                         $command->line("{$descriptor->key}::{$hook->method_name}() plugin hook set a skip flag.", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                         $skip_flag = true;
                     }
@@ -113,23 +115,23 @@ class ExtensionRunner
 
         app()->forgetScopedInstances();
 
-        return !$skip_flag;
+        return ! $skip_flag;
     }
 
     private function getExtensions(): Collection
     {
-        if($this->extensions !== null) {
+        if ($this->extensions !== null) {
             return $this->extensions;
         }
 
         return $this->extensions = collect(Attributes::findTargetClasses(BuildExtension::class))
-            ->map(fn(TargetClass $target): ExtensionDescriptor => new ExtensionDescriptor(
+            ->map(fn (TargetClass $target): ExtensionDescriptor => new ExtensionDescriptor(
                 name: $target->attribute->name,
                 key: $target->attribute->key ?? $target->name,
                 class_name: $target->name,
                 hooks: $this->getHooks($target),
             ))
-            ->keyBy(fn(ExtensionDescriptor $descriptor): string => $descriptor->key);
+            ->keyBy(fn (ExtensionDescriptor $descriptor): string => $descriptor->key);
     }
 
     private function getHooks(TargetClass $target): Collection
@@ -137,19 +139,19 @@ class ExtensionRunner
         return collect(Attributes::forClass($target->name)->methodsAttributes)
             ->map(function (array $attributes, string $method) {
                 return collect($attributes)
-                    ->filter(fn(object $attribute): bool => $attribute instanceof BuildHook)
-                    ->map(fn(BuildHook $attribute): HookDescriptor => new HookDescriptor(
+                    ->filter(fn (object $attribute): bool => $attribute instanceof BuildHook)
+                    ->map(fn (BuildHook $attribute): HookDescriptor => new HookDescriptor(
                         hook: $attribute->hook,
                         method_name: $method,
                     ));
             })
             ->flatten(1)
-            ->groupBy(fn(HookDescriptor $hook): string => $hook->hook->name);
+            ->groupBy(fn (HookDescriptor $hook): string => $hook->hook->name);
     }
 
     protected function instantiateExtension(ExtensionDescriptor $descriptor): object
     {
-        if (!isset($this->initialized_extensions[$descriptor->class_name])) {
+        if (! isset($this->initialized_extensions[$descriptor->class_name])) {
             $this->initialized_extensions[$descriptor->class_name] = app($descriptor->class_name);
         }
 
