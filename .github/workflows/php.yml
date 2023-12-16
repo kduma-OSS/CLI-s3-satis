@@ -3,11 +3,11 @@ name: Build PHAR Archive
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ "main", "develop" ]
+    branches: [ master, develop ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*', 'v*.*', 'v*' ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ master, develop ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
