@@ -86,14 +86,14 @@ class ExtensionRunner
         app()->scoped(ExtensionRunner::class, fn () => $this);
 
         $extensions = $this->getExtensions();
-        $extensions = collect($this->enabled_extensions)
+        collect($this->enabled_extensions)
             ->map(fn (string $key): ExtensionDescriptor => $extensions->get($key))
             ->filter(fn (ExtensionDescriptor $descriptor): bool => $descriptor->hooks->has($hook->name))
             ->each(function (ExtensionDescriptor $descriptor) {
                 app()->scoped(PluginConfig::class, fn () => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
                 $this->instantiateExtension($descriptor);
             })
-            ->map(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook) {
+            ->each(function (ExtensionDescriptor $descriptor) use (&$skip_flag, $command, $hook) {
                 app()->scoped(ExtensionDescriptor::class, fn () => $descriptor);
                 app()->scoped(PluginConfig::class, fn () => $this->extensions_configurations->get($descriptor->key, new PluginConfig()));
 
