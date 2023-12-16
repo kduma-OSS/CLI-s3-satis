@@ -2,6 +2,9 @@
 
 namespace App\Commands;
 
+use App\Extensions\Internals\BuildHooks;
+use App\Extensions\Internals\BuildState;
+use App\Extensions\Internals\ExtensionRunner;
 use Composer\Satis\Console\Application;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Collection;
@@ -34,7 +37,7 @@ class BuildCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): void
+    public function handle(ExtensionRunner $extensionRunner): void
     {
         $config_file = str($this->argument('config-file') ?: str(getcwd())->finish(DIRECTORY_SEPARATOR)->append('satis.json'));
 
@@ -43,141 +46,68 @@ class BuildCommand extends Command
             exit(1);
         }
 
-        $temp_subdirectory = crc32($config_file);
 
-
-        // Clear the temp directory
-        Storage::disk('temp')->deleteDirectory($temp_subdirectory);
-
-        $placeholders = collect();
-
-        $all_s3_files = collect(Storage::disk('s3')->allFiles())
-            ->map(fn($file) => str($file));
-
-        if (!$this->option('fresh')) {
-            // Download (or make placeholders) the files from S3
-            $all_s3_files->each(function (Stringable $s3_path) use ($temp_subdirectory, $placeholders) {
-                    $temp_path = $s3_path->start('/')->start($temp_subdirectory);
-
-                    if ($s3_path->afterLast('.') == 'tar' || $s3_path->afterLast('.') == 'zip') {
-                        $placeholders->push($temp_path->toString());
-
-                        $this->info("Creating placeholder {$s3_path} in temp directory");
-                        Storage::disk('temp')->put($temp_path, '');
-                    } else {
-                        $this->info("Downloading {$s3_path} from S3");
-                        Storage::disk('temp')->writeStream($temp_path, Storage::disk('s3')->readStream($s3_path));
-                    }
-                });
-        }
-
-        $application = new Application();
-        $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
-
-        // Generate satis repository
-        $application->run(
-            new ArrayInput(
-                [
-                    'command' => 'build',
-                    'file' => (string) $config_file,
-                    'output-dir' => (string) config('filesystems.disks.temp.root')->append($temp_subdirectory)
-                ] + ($this->option('repository-url') ? ['--repository-url' => $this->option('repository-url')] : [])
-            )
+        $buildConfig = new BuildState(
+            temp_prefix: crc32($config_file),
+            config_file_path: $config_file,
+            repository_urls: $this->option('repository-url'),
+            force_fresh_downloads: $this->option('fresh')
         );
 
-        // Purge the non-needed files
-        $application->run(new ArrayInput([
-            'command' => 'purge',
-            'file' => (string) $config_file,
-            'output-dir' => (string) config('filesystems.disks.temp.root')->append($temp_subdirectory)
-        ]));
 
-        // Prepare file restrictions map file
-        $homepage = json_decode(file_get_contents($config_file), true)['homepage'];
-        $packages = json_decode(Storage::disk('temp')->get(str('packages.json')->start('/')->start($temp_subdirectory)), true);
-        $packages = collect($packages['available-packages'])
-            ->map(fn($package) => [
-                str($packages['metadata-url'])->replace('%package%', $package),
-                str($packages['metadata-url'])->replace('%package%', $package.'~dev'),
-            ])
-            ->flatten()
-            ->map(fn($path) => json_decode(Storage::disk('temp')->get($path->start('/')->start($temp_subdirectory)), true))
-            ->pluck('packages')
-            ->map(function ($packages) {
-                return collect($packages)
-                    ->map(function ($versions, $package) {
-                        return collect($versions)
-                            ->filter(fn($version) => isset($version['dist']['url']))
-                            ->map(fn($version) => [
-                                'package' => $package,
-                                'url' => $version['dist']['url'],
-                                'version' => $version['version_normalized'],
-                            ]);
-                    })
-                    ->flatten(1);
-            })
-            ->flatten(1)
-            ->map(function ($package) use ($homepage) {
-                $package['url'] = str($package['url'])->replace($homepage, '')->ltrim('/')->toString();
+        $extensionRunner->execute($this, BuildHooks::BEFORE_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
+        $this->clearTempDirectory(
+            prefix: $buildConfig->getTempPrefix()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_INITIAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
 
-                return $package;
-            })
-            ->map(function ($package) use ($homepage) {
-                $package['tags'][] = "{$package['package']}:{$package['version']}";
 
-                if(preg_match('/^(\\d)\\.(\\d)\\.(\\d)\\.(\\d)$/u', $package['version'], $matches)){
-                    $package['tags'][] = "{$package['package']}:{$matches[1]}.{$matches[2]}.{$matches[3]}.x";
-                    $package['tags'][] = "{$package['package']}:{$matches[1]}.{$matches[2]}.x";
-                    $package['tags'][] = "{$package['package']}:{$matches[1]}.x";
-                }
+        $extensionRunner->execute($this, BuildHooks::BEFORE_DOWNLOAD_FROM_S3, $buildConfig);
+        if(!$buildConfig->isForceFreshDownloads()) {
+            $buildConfig->setPlaceholders(
+                placeholders: $this->downloadFromS3(prefix: $buildConfig->getTempPrefix())
+            );
+        }
+        $extensionRunner->execute($this, BuildHooks::AFTER_DOWNLOAD_FROM_S3, $buildConfig);
 
-                return $package;
-            })
-            ->groupBy('url')
-            ->map(function (Collection $packages) {
-                return $packages->pluck('tags')->flatten();
-            });
-        Storage::disk('temp')->put(str('file_restrictions.json')->start('/')->start($temp_subdirectory), json_encode($packages->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-        // Upload the generated files to S3
-        collect(Storage::disk('temp')->allFiles($temp_subdirectory))
-            ->map(fn($file) => str($file))
-            ->tap(function (Collection $files) use ($temp_subdirectory, $placeholders) {
-                [$placeholder_files, $normal_files] = $files->partition(fn(Stringable $file) => $placeholders->contains($file->toString()));
+        $extensionRunner->execute($this, BuildHooks::BEFORE_BUILD_SATIS_REPOSITORY, $buildConfig);
+        $this->buildSatisRepository(
+            config_file: $buildConfig->getConfigFilePath(),
+            prefix: $buildConfig->getTempPrefix(),
+            repository_url: $buildConfig->getRepositoryUrls()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_BUILD_SATIS_REPOSITORY, $buildConfig);
 
-                $placeholder_files->each(function (Stringable $temp_path) use ($temp_subdirectory) {
-                    $s3_path = $temp_path->after($temp_subdirectory)->ltrim('/');
 
-                    if(Storage::disk('temp')->size($temp_path) > 0) {
-                        $this->info("Uploading {$s3_path} to S3");
-                        Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
-                    } else {
-                        $this->info("Skipping {$s3_path} because it is a placeholder");
-                    }
-                });
+        $extensionRunner->execute($this, BuildHooks::BEFORE_PURGE_SATIS_REPOSITORY, $buildConfig);
+        $this->purgeSatisRepository(
+            config_file: $buildConfig->getConfigFilePath(),
+            prefix: $buildConfig->getTempPrefix()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_PURGE_SATIS_REPOSITORY, $buildConfig);
 
-                $normal_files->each(function (Stringable $temp_path) use ($temp_subdirectory) {
-                    $s3_path = $temp_path->after($temp_subdirectory)->ltrim('/');
 
-                    $this->info("Uploading {$s3_path} to S3");
-                    Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
-                });
-            })
-        ;
+        $extensionRunner->execute($this, BuildHooks::BEFORE_UPLOAD_TO_S3, $buildConfig);
+        $this->uploadToS3(
+            prefix: $buildConfig->getTempPrefix(),
+            placeholders: $buildConfig->getPlaceholders()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_UPLOAD_TO_S3, $buildConfig);
 
-        $all_local_files = collect(Storage::disk('temp')->allFiles($temp_subdirectory))
-            ->map(fn($file) => str($file))
-            ->map(fn(Stringable $temp_path) => $temp_path->after($temp_subdirectory)->ltrim('/'));
 
-        // Delete the files from S3 that are missing from the temp directory
-        $all_s3_files->diff($all_local_files)
-            ->each(function (Stringable $s3_path) {
-                $this->info("Deleting {$s3_path} because it is missing");
-                Storage::disk('s3')->delete($s3_path);
-            });
+        $extensionRunner->execute($this, BuildHooks::BEFORE_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
+        $this->removeMissingFilesFromS3(
+            prefix: $buildConfig->getTempPrefix()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_REMOVE_MISSING_FILES_FROM_S3, $buildConfig);
 
-        // Delete the generated files from the local filesystem
-        Storage::disk('temp')->deleteDirectory($temp_subdirectory);
+
+        $extensionRunner->execute($this, BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
+        $this->clearTempDirectory(
+            prefix: $buildConfig->getTempPrefix()
+        );
+        $extensionRunner->execute($this, BuildHooks::AFTER_FINAL_CLEAR_TEMP_DIRECTORY, $buildConfig);
     }
 
     /**
@@ -186,5 +116,120 @@ class BuildCommand extends Command
     public function schedule(Schedule $schedule): void
     {
         // $schedule->command(static::class)->everyMinute();
+    }
+
+    /**
+     * Clear the temp directory / delete the generated files from the local filesystem
+     */
+    public function clearTempDirectory(string $prefix): void
+    {
+        Storage::disk('temp')->deleteDirectory($prefix);
+    }
+
+    /**
+     * Download (or make placeholders) the files from S3
+     */
+    public function downloadFromS3(string $prefix): Collection
+    {
+        $placeholders = collect();
+
+        collect(Storage::disk('s3')->allFiles())
+            ->map(fn($file) => str($file))->each(function (Stringable $s3_path) use ($prefix, $placeholders) {
+                $temp_path = $s3_path->start('/')->start($prefix);
+
+                if ($s3_path->afterLast('.') == 'tar' || $s3_path->afterLast('.') == 'zip') {
+                    $placeholders->push($temp_path->toString());
+
+                    $this->line("Creating placeholder {$s3_path} in temp directory");
+                    Storage::disk('temp')->put($temp_path, '');
+                } else {
+                    $this->line("Downloading {$s3_path} from S3");
+                    Storage::disk('temp')->writeStream($temp_path, Storage::disk('s3')->readStream($s3_path));
+                }
+            });
+
+        return $placeholders;
+    }
+
+    /**
+     * Generate satis repository
+     */
+    public function buildSatisRepository(string $config_file, string $prefix, array $repository_url = null): void
+    {
+        $application = new Application();
+        $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
+
+        $application->run(
+            new ArrayInput(
+                [
+                    'command' => 'build',
+                    'file' => $config_file,
+                    'output-dir' => (string)config('filesystems.disks.temp.root')->append($prefix)
+                ] + ($repository_url ? ['--repository-url' => $repository_url] : [])
+            )
+        );
+    }
+
+    /**
+     * Purge the non-needed files
+     */
+    public function purgeSatisRepository(string $config_file, string $prefix): void
+    {
+        $application = new Application();
+        $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
+
+        $application->run(new ArrayInput([
+            'command' => 'purge',
+            'file' => $config_file,
+            'output-dir' => (string) config('filesystems.disks.temp.root')->append($prefix)
+        ]));
+    }
+
+    /**
+     * Delete the files from S3 that are missing from the temp directory
+     */
+    public function removeMissingFilesFromS3(int $prefix): void
+    {
+        $all_local_files = collect(Storage::disk('temp')->allFiles($prefix))
+            ->map(fn($file) => str($file))
+            ->map(fn(Stringable $temp_path) => $temp_path->after($prefix)->ltrim('/'));
+
+        collect(Storage::disk('s3')->allFiles())
+            ->map(fn($file) => str($file))
+            ->diff($all_local_files)
+            ->each(function (Stringable $s3_path) {
+                $this->line("Deleting {$s3_path} because it is missing");
+                Storage::disk('s3')->delete($s3_path);
+            });
+    }
+
+    /**
+     * Upload the generated files to S3
+     */
+    public function uploadToS3(int $prefix, Collection $placeholders): void
+    {
+        collect(Storage::disk('temp')->allFiles($prefix))
+            ->map(fn($file) => str($file))
+            ->tap(function (Collection $files) use ($prefix, $placeholders) {
+                [$placeholder_files, $normal_files] = $files->partition(fn(Stringable $file) => $placeholders->contains($file->toString()));
+
+                $placeholder_files->each(function (Stringable $temp_path) use ($prefix) {
+                    $s3_path = $temp_path->after($prefix)->ltrim('/');
+
+                    if (Storage::disk('temp')->size($temp_path) > 0) {
+                        $this->line("Uploading {$s3_path} to S3");
+                        Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
+                    } else {
+                        $this->line("Skipping {$s3_path} because it is a placeholder");
+                    }
+                });
+
+                $normal_files->each(function (Stringable $temp_path) use ($prefix) {
+                    $s3_path = $temp_path->after($prefix)->ltrim('/');
+
+                    $this->line("Uploading {$s3_path} to S3");
+                    Storage::disk('s3')->writeStream($s3_path, Storage::disk('temp')->readStream($temp_path));
+                });
+            });
     }
 }
