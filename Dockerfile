@@ -24,7 +24,7 @@ RUN ./s3-satis app:build --build-version=${BUILD_VERSION} --ansi -vvv
 FROM php:8.2-cli AS runtime
 
 RUN apt-get update \
-	&& apt-get -y install libzip-dev \
+	&& apt-get -y install libzip-dev git \
     && apt-get -y autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
