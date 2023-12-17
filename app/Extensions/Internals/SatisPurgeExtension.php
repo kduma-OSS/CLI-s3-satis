@@ -11,6 +11,10 @@ class SatisPurgeExtension
     #[BuildHook(BuildHooks::AFTER_BUILD_SATIS_REPOSITORY)]
     public function hook(BuildStateInterface $buildState): void
     {
+        if(!$buildState->getConfig()->has('archive')) {
+            return;
+        }
+
         $application = new Application();
         $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
 

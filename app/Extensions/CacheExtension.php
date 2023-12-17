@@ -18,6 +18,10 @@ class CacheExtension
 {
     #[BuildHook(BuildHooks::BEFORE_DOWNLOAD_FROM_S3)]
     public function loadFromCache(PluginConfig $config, BuildState $buildState, Command $command): bool {
+        if($buildState->isForceFreshDownloads()) {
+            return true;
+        }
+
         $placeholders = $buildState->getPlaceholders();
         $crc = $buildState->getCrc();
 
