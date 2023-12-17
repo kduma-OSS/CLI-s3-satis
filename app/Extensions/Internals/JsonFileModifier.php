@@ -62,7 +62,19 @@ class JsonFileModifier
     public function modifyVersions(callable $callback): static
     {
         return $this->modifyPackages(function (Collection $versions, string $package_name, Stringable $path) use ($callback) {
-            $versions->each(fn (Collection $version) => $callback($version, $package_name, $path));
+             return $versions->map(function (Collection $version) use ($callback, $package_name, $path) {
+                $return_value = $callback($version, $package_name, $path);
+
+                if ($return_value === false) {
+                    return null;
+                }
+
+                if ($return_value instanceof Collection) {
+                    return $return_value;
+                }
+
+                return $version;
+            })->filter(fn ($version) => $version !== null);
         });
     }
 
@@ -77,9 +89,22 @@ class JsonFileModifier
         /** @var Collection $packages */
         $packages = collect(json_decode(Storage::disk('temp')->get($fs_path), true))->recursive();
 
-        $packages
+        $packages['packages'] = $packages
             ->get('packages', collect())
-            ->each(fn (Collection $versions, string $package_name) => $callback($versions, $package_name, $path));
+            ->map(function (Collection $versions, string $package_name) use ($callback, $path) {
+                $return_value = $callback($versions, $package_name, $path);
+
+                if ($return_value === false) {
+                    return null;
+                }
+
+                if ($return_value instanceof Collection) {
+                    return $return_value;
+                }
+
+                return $versions;
+            })
+            ->filter(fn ($version) => $version !== null);
 
         $json = $packages->toJson(JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         Storage::disk('temp')->put($fs_path, $json);
