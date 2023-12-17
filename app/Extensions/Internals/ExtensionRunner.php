@@ -16,6 +16,7 @@ class ExtensionRunner
 
     private array $enabled_extensions = [
         'prepare-config-for-satis',
+        'checksum-fixer',
         'satis-purge',
     ];
 
