@@ -20,7 +20,8 @@
         "plugins": {
             "cache": {
                 "enabled": false,
-                "path": "temp"
+                "path": "temp",
+                "copy": false
             },
             "file-restrictions-map-generator": false,
             "strip-sources-links": false,

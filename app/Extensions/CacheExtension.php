@@ -43,21 +43,24 @@ class CacheExtension
                     'cache_path' => $path->append($file),
                 ];
             })
-            ->each(function (array $file) use ($command, $crc, $placeholders) {
+            ->each(function (array $file) use ($config, $command, $crc, $placeholders) {
                 if (filesize($file['cache_path']) === 0) {
                     $placeholders->push($file['fs_path']->toString());
                 } else {
                     $crc[$file['fs_path']->toString()] = crc32(file_get_contents($file['cache_path']));
                 }
 
-                $command->line("Moving {$file['file']} from cache.", verbosity: OutputInterface::VERBOSITY_DEBUG);
-
                 $directory = dirname($file['path']);
                 if(!is_dir($directory) && !mkdir($directory, recursive: true)) {
                     throw new \Exception("Unable to create directory {$directory}.");
                 }
-
-                rename($file['cache_path'], $file['path']);
+                if($config->get('copy', false)) {
+                    $command->line("Copying {$file['file']} from cache.", verbosity: OutputInterface::VERBOSITY_DEBUG);
+                    copy($file['cache_path'], $file['path']);
+                } else {
+                    $command->line("Moving {$file['file']} from cache.", verbosity: OutputInterface::VERBOSITY_DEBUG);
+                    rename($file['cache_path'], $file['path']);
+                }
             });
 
         $buildState->setPlaceholders($placeholders);
@@ -73,6 +76,12 @@ class CacheExtension
         $filesystem = Storage::createLocalDriver(['root' => $path]);
 
         $work_path = config('filesystems.disks.temp.root');
+
+        if ($config->get('copy', false)) {
+            collect($filesystem->allFiles())->each(function (string $file) use ($filesystem) {
+                $filesystem->delete($file);
+            });
+        }
 
         collect(Storage::disk('temp')->allFiles($buildState->getTempPrefix()))
             ->map(function (string $file) use ($buildState, $work_path, $path) {
