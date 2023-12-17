@@ -24,7 +24,15 @@
                 "copy": false
             },
             "file-restrictions-map-generator": false,
-            "strip-sources-links": false,
+            "remove-fields-from-json": {
+                "enabled": false,
+                "remove": [
+                    "source",
+                    "authors",
+                    "homepage",
+                    "support"
+                ]
+            },
             "skip-step-after-hook": {
                 "enabled": false,
                 "skip": [
