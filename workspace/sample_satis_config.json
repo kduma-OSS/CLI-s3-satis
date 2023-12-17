@@ -10,6 +10,12 @@
 
     "require-all": true,
 
+    "repositories-dep": [
+        { "type": "composer", "url": "https://packagist.org" }
+    ],
+    "require-dependencies": false,
+    "only-best-candidates": false,
+
     "archive": {
         "directory": "dist",
         "format": "tar",
@@ -23,10 +29,10 @@
                 "path": "temp",
                 "copy": false
             },
-            "skip-remote-versions": false,
-            "file-restrictions-map-generator": false,
+            "skip-remote-versions": true,
+            "file-restrictions-map-generator": true,
             "remove-fields-from-json": {
-                "enabled": false,
+                "enabled": true,
                 "remove": [
                     "source",
                     "authors",
