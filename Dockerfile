@@ -34,13 +34,12 @@ RUN docker-php-ext-install zip
 COPY --from=builder /usr/src/satis/builds/s3-satis /usr/src/satis/s3-satis
 WORKDIR /usr/src/satis
 
-ENV AWS_ACCESS_KEY_ID=""
-ENV AWS_SECRET_ACCESS_KEY=""
-ENV AWS_DEFAULT_REGION="us-east-1"
-ENV AWS_BUCKET=""
-ENV AWS_URL=""
-ENV AWS_ENDPOINT=""
-ENV AWS_USE_PATH_STYLE_ENDPOINT="false"
+ENV S3_ACCESS_KEY_ID=""
+ENV S3_SECRET_ACCESS_KEY=""
+ENV S3_REGION="us-east-1"
+ENV S3_BUCKET=""
+ENV S3_ENDPOINT=""
+ENV S3_USE_PATH_STYLE_ENDPOINT="false"
 
 
 ENTRYPOINT [ "php", "./s3-satis"]
