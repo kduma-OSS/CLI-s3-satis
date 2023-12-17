@@ -64,8 +64,13 @@ class FileRestrictionsMapFileGeneratorExtension
             ->groupBy('url')
             ->map(function (Collection $packages) {
                 return $packages->pluck('tags')->flatten();
-            });
+            })
+            ->filter(fn (Collection $tags, string $url) => !str($url)->startsWith(['http://', 'https://']));
 
-        Storage::disk('temp')->put(str('file_restrictions.json')->start('/')->start($buildState->getTempPrefix()), json_encode($packages->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        Storage::disk('temp')->deleteDirectory('file_restrictions');
+        $packages->each(function (Collection $tags, string $url) use ($buildState) {
+            $path = str('_file_restrictions')->append('/')->append($url)->append('.json')->start('/')->start($buildState->getTempPrefix());
+            Storage::disk('temp')->put($path, $tags->toJson(JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        });
     }
 }
