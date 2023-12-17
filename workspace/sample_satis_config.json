@@ -23,6 +23,7 @@
                 "path": "temp",
                 "copy": false
             },
+            "skip-remote-versions": false,
             "file-restrictions-map-generator": false,
             "remove-fields-from-json": {
                 "enabled": false,
