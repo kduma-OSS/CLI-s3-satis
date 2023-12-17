@@ -56,10 +56,10 @@ class BuildCommand extends Command
 
         $extensionRunner->enableExtensionFromBuildState($this, $buildConfig);
 
-        if($this->option('set-extension')) {
+        if ($this->option('set-extension')) {
             $runtime_extensions = collect($this->option('set-extension'));
 
-            if ($runtime_extensions->filter(fn($name) => !$name)->count()) {
+            if ($runtime_extensions->filter(fn ($name) => ! $name)->count()) {
                 $this->error('Extension names cannot be empty');
                 exit(1);
             }
@@ -262,11 +262,12 @@ class BuildCommand extends Command
                 $normal_files->each(function (Stringable $temp_path) use ($crc, $prefix) {
                     $s3_path = $temp_path->after($prefix)->ltrim('/');
 
-                    if($crc->has($temp_path->toString())) {
+                    if ($crc->has($temp_path->toString())) {
                         $this->line("Checking {$s3_path} for changes", verbosity: OutputInterface::VERBOSITY_VERBOSE);
                         $local_crc = crc32(Storage::disk('temp')->get($temp_path));
                         if ($crc[$temp_path->toString()] == $local_crc) {
                             $this->line("Skipping {$s3_path} because it has not changed", verbosity: OutputInterface::VERBOSITY_VERBOSE);
+
                             return;
                         }
                     }

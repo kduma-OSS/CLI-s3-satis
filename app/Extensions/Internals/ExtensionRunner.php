@@ -2,7 +2,6 @@
 
 namespace App\Extensions\Internals;
 
-use App\Commands\BuildCommand;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use LaravelZero\Framework\Commands\Command;
@@ -29,13 +28,13 @@ class ExtensionRunner
         $this->extensions_configurations = collect();
     }
 
-    public function enableExtension(string $extension, Collection $configuration = null): void
+    public function enableExtension(string $extension, ?Collection $configuration = null): void
     {
         if ($this->getExtensions()->has($extension) === false) {
             throw new InvalidArgumentException("Extension $extension does not exist.");
         }
 
-        if (!in_array($extension, $this->enabled_extensions, true)) {
+        if (! in_array($extension, $this->enabled_extensions, true)) {
             $this->enabled_extensions[] = $extension;
         }
 
@@ -80,7 +79,7 @@ class ExtensionRunner
     public function enableExtensionFromRunOptions(Command $command, Collection $extensionsList): void
     {
         $extensionsList->map(function (string $extension) {
-            if(str($extension)->contains(':')) {
+            if (str($extension)->contains(':')) {
                 [$extension, $config] = explode(':', $extension, 2);
             }
 
@@ -89,7 +88,7 @@ class ExtensionRunner
                 'config' => $config ?? null,
             ];
         })->map(function (array $extension) {
-            if($extension['config'] === null || $extension['config'] === '') {
+            if ($extension['config'] === null || $extension['config'] === '') {
                 return $extension;
             }
 
@@ -100,19 +99,19 @@ class ExtensionRunner
                     return [$key => $value];
                 })
                 ->map(function (string $value) {
-                    if($value === 'true') {
+                    if ($value === 'true') {
                         return true;
                     }
 
-                    if($value === 'false') {
+                    if ($value === 'false') {
                         return false;
                     }
 
-                    if($value === 'null') {
+                    if ($value === 'null') {
                         return null;
                     }
 
-                    if(is_numeric($value)) {
+                    if (is_numeric($value)) {
                         return (int) $value;
                     }
 
@@ -122,9 +121,10 @@ class ExtensionRunner
 
             return $extension;
         })->each(function (array $extension) use ($command) {
-            if($extension['config']->get('enabled', true) === false) {
+            if ($extension['config']->get('enabled', true) === false) {
                 $this->disableExtension($extension['key']);
                 $command->line("Disabled {$extension['key']} plugin (from options).", verbosity: OutputInterface::VERBOSITY_DEBUG);
+
                 return;
             }
 

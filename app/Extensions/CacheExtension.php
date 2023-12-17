@@ -7,9 +7,7 @@ use App\Extensions\Internals\BuildHook;
 use App\Extensions\Internals\BuildHooks;
 use App\Extensions\Internals\BuildState;
 use App\Extensions\Internals\PluginConfig;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Stringable;
 use LaravelZero\Framework\Commands\Command;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -17,8 +15,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class CacheExtension
 {
     #[BuildHook(BuildHooks::BEFORE_DOWNLOAD_FROM_S3)]
-    public function loadFromCache(PluginConfig $config, BuildState $buildState, Command $command): bool {
-        if($buildState->isForceFreshDownloads()) {
+    public function loadFromCache(PluginConfig $config, BuildState $buildState, Command $command): bool
+    {
+        if ($buildState->isForceFreshDownloads()) {
             return true;
         }
 
@@ -28,7 +27,7 @@ class CacheExtension
         $path = str($this->getCachePath($config))->finish(DIRECTORY_SEPARATOR);
         $filesystem = Storage::createLocalDriver(['root' => $path]);
 
-        if(!$filesystem->exists('packages.json')) {
+        if (! $filesystem->exists('packages.json')) {
             return true;
         }
 
@@ -51,10 +50,10 @@ class CacheExtension
                 }
 
                 $directory = dirname($file['path']);
-                if(!is_dir($directory) && !mkdir($directory, recursive: true)) {
+                if (! is_dir($directory) && ! mkdir($directory, recursive: true)) {
                     throw new \Exception("Unable to create directory {$directory}.");
                 }
-                if($config->get('copy', false)) {
+                if ($config->get('copy', false)) {
                     $command->line("Copying {$file['file']} from cache.", verbosity: OutputInterface::VERBOSITY_DEBUG);
                     copy($file['cache_path'], $file['path']);
                 } else {
@@ -69,9 +68,9 @@ class CacheExtension
         return false;
     }
 
-
     #[BuildHook(BuildHooks::BEFORE_FINAL_CLEAR_TEMP_DIRECTORY)]
-    public function saveToCache(PluginConfig $config, BuildState $buildState, Command $command): void {
+    public function saveToCache(PluginConfig $config, BuildState $buildState, Command $command): void
+    {
         $path = str($this->getCachePath($config))->finish(DIRECTORY_SEPARATOR);
         $filesystem = Storage::createLocalDriver(['root' => $path]);
 
@@ -86,6 +85,7 @@ class CacheExtension
         collect(Storage::disk('temp')->allFiles($buildState->getTempPrefix()))
             ->map(function (string $file) use ($buildState, $work_path, $path) {
                 $work_name = str($file)->after($buildState->getTempPrefix())->after(DIRECTORY_SEPARATOR);
+
                 return [
                     'file' => $work_name,
                     'path' => $work_path->append($file),
@@ -94,13 +94,14 @@ class CacheExtension
             })
             ->each(function (array $file) use ($command) {
                 $directory = dirname($file['cache_path']);
-                if(!is_dir($directory) && !mkdir($directory, recursive: true)) {
+                if (! is_dir($directory) && ! mkdir($directory, recursive: true)) {
                     throw new \Exception("Unable to create directory {$directory}.");
                 }
 
-                if(str($file['file'])->endsWith(['.zip', '.tar'])) {
+                if (str($file['file'])->endsWith(['.zip', '.tar'])) {
                     $command->line("Skipping caching {$file['file']} - placeholder was created instead.", verbosity: OutputInterface::VERBOSITY_DEBUG);
                     touch($file['cache_path']);
+
                     return;
                 }
 
@@ -110,29 +111,27 @@ class CacheExtension
             });
     }
 
-
-
     protected function getCachePath(PluginConfig $config): false|string
     {
-        if($config->has('path')) {
+        if ($config->has('path')) {
             $path = $config->get('path', '');
         } else {
             $path = 'temp';
         }
 
-        if($path === '') {
+        if ($path === '') {
             return false;
         }
 
-        if($path === 'temp') {
+        if ($path === 'temp') {
             $path = config('filesystems.disks.temp.root')->append('cache')->finish(DIRECTORY_SEPARATOR);
         }
 
-        if(!is_dir($path) && file_exists($path)) {
+        if (! is_dir($path) && file_exists($path)) {
             return false;
         }
 
-        if(!file_exists($path) && !mkdir($path, recursive: true)) {
+        if (! file_exists($path) && ! mkdir($path, recursive: true)) {
             return false;
         }
 

@@ -25,12 +25,12 @@ class JsonFileModifier
                 str($packages->get('metadata-url'))->replace('%package%', $package.'~dev'),
             ])
             ->flatten()
-            ->each(fn(Stringable $path) => $this->processPackagesFile($path, $callback));
+            ->each(fn (Stringable $path) => $this->processPackagesFile($path, $callback));
 
         $packages['includes'] = $packages->get('includes', collect())
-            ->each(fn(Collection $parameters, string $path) => $this->processPackagesFile(str($path), $callback))
-            ->mapWithKeys(function (Collection $parameters, string $path)  {
-                if (!$parameters->has('sha1')) {
+            ->each(fn (Collection $parameters, string $path) => $this->processPackagesFile(str($path), $callback))
+            ->mapWithKeys(function (Collection $parameters, string $path) {
+                if (! $parameters->has('sha1')) {
                     return [$path => $parameters];
                 }
 
@@ -62,7 +62,7 @@ class JsonFileModifier
     public function modifyVersions(callable $callback): static
     {
         return $this->modifyPackages(function (Collection $versions, string $package_name, Stringable $path) use ($callback) {
-            $versions->each(fn(Collection $version) => $callback($version, $package_name, $path));
+            $versions->each(fn (Collection $version) => $callback($version, $package_name, $path));
         });
     }
 
@@ -79,7 +79,7 @@ class JsonFileModifier
 
         $packages
             ->get('packages', collect())
-            ->each(fn(Collection $versions, string $package_name) => $callback($versions, $package_name, $path));
+            ->each(fn (Collection $versions, string $package_name) => $callback($versions, $package_name, $path));
 
         $json = $packages->toJson(JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         Storage::disk('temp')->put($fs_path, $json);

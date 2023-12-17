@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 class BuildState implements BuildStateInterface
 {
     protected Collection $placeholders;
+
     protected Collection $crc;
 
     public bool $last_step_executed = false;
@@ -88,6 +89,7 @@ class BuildState implements BuildStateInterface
     public function setCrc(Collection $crc): BuildState
     {
         $this->crc = $crc;
+
         return $this;
     }
 

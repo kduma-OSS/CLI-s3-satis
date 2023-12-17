@@ -11,7 +11,7 @@ class SatisPurgeExtension
     #[BuildHook(BuildHooks::AFTER_BUILD_SATIS_REPOSITORY)]
     public function hook(BuildStateInterface $buildState): void
     {
-        if(!$buildState->getConfig()->has('archive')) {
+        if (! $buildState->getConfig()->has('archive')) {
             return;
         }
 

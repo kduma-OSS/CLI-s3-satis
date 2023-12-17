@@ -65,7 +65,7 @@ class FileRestrictionsMapFileGeneratorExtension
             ->map(function (Collection $packages) {
                 return $packages->pluck('tags')->flatten();
             })
-            ->filter(fn (Collection $tags, string $url) => !str($url)->startsWith(['http://', 'https://']));
+            ->filter(fn (Collection $tags, string $url) => ! str($url)->startsWith(['http://', 'https://']));
 
         Storage::disk('temp')->deleteDirectory('.tags');
         $packages->each(function (Collection $tags, string $url) use ($buildState) {
