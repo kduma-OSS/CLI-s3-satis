@@ -1,13 +1,7 @@
 <?php
 
-namespace App\Extensions;
+namespace App\Extensions\Internals;
 
-use App\Extensions\Internals\BuildExtension;
-use App\Extensions\Internals\BuildHook;
-use App\Extensions\Internals\BuildHooks;
-use App\Extensions\Internals\BuildState;
-use App\Extensions\Internals\JsonFileModifier;
-use App\Extensions\Internals\PluginConfig;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Stringable;
