@@ -29,10 +29,13 @@
                 "path": "temp",
                 "copy": false
             },
-            "skip-remote-versions": true,
-            "file-restrictions-map-generator": true,
+            "skip-remote-versions": false,
+            "file-restrictions-map-generator": {
+                "enabled": false,
+                "extra-json": false
+            },
             "remove-fields-from-json": {
-                "enabled": true,
+                "enabled": false,
                 "remove": [
                     "source",
                     "authors",
