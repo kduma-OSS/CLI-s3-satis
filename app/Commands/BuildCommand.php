@@ -26,6 +26,8 @@ class BuildCommand extends Command
         {--repository-url=* : Only update the repository at given URL(s).}
         {--fresh : Force a rebuild of all packages.}
         {--set-extension=* : Configures the build to use the given extension(s).}
+        {--skip-errors : Skip Download or Archive errors }
+        {--no-interaction-s3 : Do not ask any interactive question }
     ';
 
     /**
@@ -51,7 +53,9 @@ class BuildCommand extends Command
             temp_prefix: crc32($config_file),
             config_file_path: $config_file,
             repository_urls: $this->option('repository-url'),
-            force_fresh_downloads: $this->option('fresh')
+            force_fresh_downloads: $this->option('fresh'),
+            skip_errors: $this->option('skip-errors'),
+            no_interaction: $this->option('no-interaction-s3')
         );
 
         $extensionRunner->enableExtensionFromBuildState($this, $buildConfig);
@@ -110,7 +114,9 @@ class BuildCommand extends Command
             $this->buildSatisRepository(
                 config_file: $buildConfig->getConfigFilePath(),
                 prefix: $buildConfig->getTempPrefix(),
-                repository_url: $buildConfig->getRepositoryUrls()
+                repository_url: $buildConfig->getRepositoryUrls(),
+                skip_errors: $buildConfig->isSkipErrors(),
+                no_interaction: $buildConfig->isNoInteraction()
             );
         } else {
             $this->info('Skipping building satis repository');
@@ -204,7 +210,7 @@ class BuildCommand extends Command
     /**
      * Generate satis repository
      */
-    protected function buildSatisRepository(string $config_file, string $prefix, ?array $repository_url = null): void
+    protected function buildSatisRepository(string $config_file, string $prefix, ?array $repository_url = null, ?bool $skip_errors = null, ?bool $no_interaction = null): void
     {
         $application = new Application();
         $application->setAutoExit(false); // prevent `$application->run` method from exitting the script
@@ -216,6 +222,8 @@ class BuildCommand extends Command
                     'file' => $config_file,
                     'output-dir' => (string) config('filesystems.disks.temp.root')->append($prefix),
                 ] + ($repository_url ? ['--repository-url' => $repository_url] : [])
+                + ($skip_errors ? ['--skip-errors' => true] : [])
+                + ($no_interaction ? ['--no-interaction' => true] : [])
             )
         );
     }

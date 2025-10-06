@@ -19,6 +19,8 @@ class BuildState implements BuildStateInterface
         protected string $config_file_path,
         protected array $repository_urls = [],
         protected bool $force_fresh_downloads = false,
+        protected bool $skip_errors = false,
+        protected bool $no_interaction = false,
     ) {
         $this->placeholders = collect();
         $this->crc = collect();
@@ -101,6 +103,30 @@ class BuildState implements BuildStateInterface
     public function setForceFreshDownloads(bool $force_fresh_downloads): BuildState
     {
         $this->force_fresh_downloads = $force_fresh_downloads;
+
+        return $this;
+    }
+
+    public function isSkipErrors(): bool
+    {
+        return $this->skip_errors;
+    }
+
+    public function setSkipErrors(bool $skip_errors): BuildState
+    {
+        $this->skip_errors = $skip_errors;
+
+        return $this;
+    }
+
+    public function isNoInteraction(): bool
+    {
+        return $this->no_interaction;
+    }
+
+    public function setNoInteraction(bool $no_interaction): BuildState
+    {
+        $this->no_interaction = $no_interaction;
 
         return $this;
     }
