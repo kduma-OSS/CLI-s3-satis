@@ -28,6 +28,14 @@ interface BuildStateInterface
 
     public function setForceFreshDownloads(bool $force_fresh_downloads): BuildState;
 
+    public function isSkipErrors(): bool;
+
+    public function setSkipErrors(bool $skip_errors): BuildState;
+
+    public function isNoInteraction(): bool;
+
+    public function setNoInteraction(bool $no_interaction): BuildState;
+
     public function isLastStepSkipped(): bool;
 
     public function getConfig(): Collection;
