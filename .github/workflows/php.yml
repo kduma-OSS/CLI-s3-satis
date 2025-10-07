@@ -59,7 +59,7 @@ jobs:
         run: mv builds/s3-satis builds/s3-satis.phar
 
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v4
         with:
           name: binary
           path: builds/*
